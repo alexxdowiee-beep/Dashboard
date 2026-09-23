@@ -31,6 +31,7 @@
     --brand-ink: #120B07;
     --gold: #F0B429;
     --good: #5FBF6E;
+    --danger: #E5484D;
     --font-display: 'Anton', 'Arial Narrow', sans-serif;
     --font-body: 'Archivo', -apple-system, BlinkMacSystemFont, sans-serif;
     color-scheme: dark;
@@ -80,6 +81,24 @@
   .tile .l { font-size:9.5px; color: var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:0.04em; margin-top:3px; }
   .tile.flag .v { color: var(--brand); }
 
+  /* ---- how you're tracking ---- */
+  .track { background: var(--surface); border:1px solid var(--line); border-radius:16px; padding:14px 16px 6px; margin-bottom:13px; }
+  .tr-head { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px; }
+  .tr-title { font-family: var(--font-display); font-size:15px; text-transform:uppercase; letter-spacing:0.06em; }
+  .tr-when { font-size:10.5px; color: var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:0.05em; }
+  .pb { margin-bottom:13px; }
+  .pb-top { display:flex; justify-content:space-between; align-items:baseline; gap:10px; margin-bottom:5px; }
+  .pb-name { font-size:13px; font-weight:600; white-space:nowrap; }
+  .pb-name .app { color: var(--faint); font-weight:700; font-size:10px; text-transform:uppercase; letter-spacing:0.05em; margin-left:5px; }
+  .pb-val { font-family: var(--font-display); font-size:15px; font-variant-numeric: tabular-nums; white-space:nowrap; }
+  .pb-val .of { font-size:11.5px; color: var(--muted); font-family: var(--font-body); font-weight:700; }
+  .pb-track { position:relative; height:9px; background: var(--surface2); border-radius:5px; overflow:visible; }
+  .pb-fill { height:100%; border-radius:5px; transition: width .4s ease; }
+  .pb-pace { position:absolute; top:-3px; bottom:-3px; width:2px; background: var(--ink); opacity:.7; border-radius:1px; }
+  .pb-note { font-size:11px; font-weight:700; margin-top:5px; }
+  .tr-legend { font-size:10.5px; color: var(--faint); text-align:center; margin: -4px 0 14px; }
+  .tr-legend i { display:inline-block; width:2px; height:9px; background: var(--ink); opacity:.7; vertical-align:-1px; margin-right:4px; }
+
   .note { font-size:11.5px; color: var(--faint); text-align:center; line-height:1.5; margin-top:18px; }
 
   /* ---- settings ---- */
@@ -107,12 +126,7 @@
 <div class="app">
   <header class="topbar">
     <span class="brand">
-      <svg viewBox="0 0 40 40" aria-hidden="true">
-        <rect x="4" y="4" width="14" height="14" rx="3" fill="var(--brand)"/>
-        <rect x="22" y="4" width="14" height="14" rx="3" fill="var(--ink)" opacity="0.55"/>
-        <rect x="4" y="22" width="14" height="14" rx="3" fill="var(--ink)" opacity="0.55"/>
-        <rect x="22" y="22" width="14" height="14" rx="3" fill="var(--brand)"/>
-      </svg>
+      <svg viewBox="68 68 376 376" aria-hidden="true"><path d="M390.2,154.9 A168,168 0 0 1 179.7,405.7 M121.8,357.1 A168,168 0 0 1 332.3,106.3" fill="none" stroke="var(--brand)" stroke-width="30"/><g fill="var(--ink)" transform="translate(256 256) skewX(-12) translate(-256 -256) translate(156.0 156)"><rect x="0" y="0" width="86" height="86" rx="10"/><rect x="0" y="114" width="86" height="86" rx="10"/><rect x="114" y="0" width="86" height="86" rx="10"/><rect x="114" y="114" width="86" height="86" rx="10"/></g></svg>
       <span class="wordmark">Dashboard</span>
     </span>
     <span class="sub" id="topSub"></span>
@@ -345,8 +359,101 @@
            '</div>';
   }
 
+
+  /* ================= HOW YOU'RE TRACKING =================
+     Progress bars grouped by the period they belong to (today, this
+     week, this pay period). Each bar has a thin white PACE mark: where
+     you'd be by now if you spread the target evenly over the period.
+       goal  (workouts, protein, water, mind minutes) — want to reach it:
+             behind the mark = amber, at/past it = green.
+       limit (calories, spending) — want to stay under it:
+             past the mark = amber, past the target = red.
+     Everything comes from the summaries the apps save, so a bar only
+     appears once its app has been opened in that period. */
+
+  function ymdLocal(d) { var p = function (n) { return (n < 10 ? '0' : '') + n; }; return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); }
+  function weekStartLocal() { var d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d; }
+  function frac(start, end) { var t = Date.now(); return Math.max(0, Math.min(1, (t - start) / (end - start))); }
+  // The day's pace runs over waking hours (7am-9pm), not midnight to midnight.
+  function dayPace() { var a = new Date(); a.setHours(7, 0, 0, 0); var b = new Date(); b.setHours(21, 0, 0, 0); return frac(a.getTime(), b.getTime()); }
+  function fmtMins(m) { m = Math.round(m || 0); if (m < 60) return m + 'm'; var h = Math.floor(m / 60), r = m % 60; return r ? h + 'h ' + r + 'm' : h + 'h'; }
+  function money(n) { return '$' + Math.round(n).toLocaleString(); }
+  function num(n) { return Math.round(n).toLocaleString(); }
+
+  function barHtml(o) {
+    // o: { name, app, value, target, pace (0-1), kind: 'goal'|'limit', show(v) }
+    if (!(o.target > 0) || o.value === null || o.value === undefined) return '';
+    var pct = Math.min(100, o.value / o.target * 100);
+    var expected = o.target * o.pace;
+    var colour, note;
+    if (o.kind === 'goal') {
+      if (o.value >= o.target) { colour = 'var(--good)'; note = 'Done ✓'; }
+      else if (o.value >= expected - o.target * 0.03) { colour = 'var(--good)'; note = 'On track · ' + o.show(o.target - o.value) + ' to go'; }
+      else { colour = 'var(--gold)'; note = 'Behind pace · ' + o.show(Math.max(0, expected - o.value)) + ' to catch up'; }
+    } else {
+      if (o.value > o.target) { colour = 'var(--danger)'; note = 'Over by ' + o.show(o.value - o.target); }
+      else if (o.value > expected + o.target * 0.03) { colour = 'var(--gold)'; note = 'Ahead of pace · ' + o.show(o.target - o.value) + ' left'; }
+      else { colour = 'var(--good)'; note = 'Under pace ✓ · ' + o.show(o.target - o.value) + ' left'; }
+    }
+    return '<div class="pb"><div class="pb-top"><span class="pb-name">' + esc(o.name) + '<span class="app">' + esc(o.app) + '</span></span>' +
+             '<span class="pb-val">' + (o.showV || o.show)(o.value) + '<span class="of"> / ' + o.show(o.target) + '</span></span></div>' +
+           '<div class="pb-track"><div class="pb-fill" style="width:' + pct.toFixed(1) + '%;background:' + colour + '"></div>' +
+             (o.pace > 0 && o.pace < 1 ? '<div class="pb-pace" style="left:calc(' + (o.pace * 100).toFixed(1) + '% - 1px)"></div>' : '') +
+           '</div><div class="pb-note" style="color:' + colour + '">' + note + '</div></div>';
+  }
+  function groupHtml(title, when, bars) {
+    bars = bars.filter(Boolean);
+    if (!bars.length) return '';
+    return '<div class="track"><div class="tr-head"><span class="tr-title">' + esc(title) + '</span><span class="tr-when">' + esc(when) + '</span></div>' + bars.join('') + '</div>';
+  }
+  function get(key) { return readSummary({ key: key }); }
+
+  function trackingHtml() {
+    var html = '';
+    var today = ymdLocal(new Date());
+
+    // ---- today (Fuel) ----
+    var fu = get('fuel_summary');
+    if (fu && fu.data && fu.data.date === today) {
+      var d = fu.data, t = d.today || {}, tg = d.targets || {}, dp = dayPace();
+      html += groupHtml('Today', Math.round(dp * 100) + '% through the day', [
+        barHtml({ name: 'Calories', app: 'Fuel', value: t.calories, target: tg.calories, pace: dp, kind: 'limit', show: function (v) { return num(v) + ' kcal'; } }),
+        barHtml({ name: 'Protein', app: 'Fuel', value: t.protein_g, target: tg.protein_g, pace: dp, kind: 'goal', show: function (v) { return num(v) + 'g'; } }),
+        barHtml({ name: 'Fibre', app: 'Fuel', value: t.fibre_g, target: tg.fibre_g, pace: dp, kind: 'goal', show: function (v) { return num(v) + 'g'; } }),
+        barHtml({ name: 'Water', app: 'Fuel', value: t.water_ml, target: tg.water_ml, pace: dp, kind: 'goal', show: function (v) { return (v / 1000).toFixed(1) + ' L'; } })
+      ]);
+    }
+
+    // ---- this week (Forge, Mind) — Monday to Sunday ----
+    var ws = weekStartLocal(), we = new Date(ws); we.setDate(we.getDate() + 7);
+    var wp = frac(ws.getTime(), we.getTime());
+    var thisWeek = function (s) { return s && new Date(s.updatedAt).getTime() >= ws.getTime(); };
+    var fo = get('forge_summary'), mi = get('mind_summary');
+    var dayName = new Date().toLocaleDateString(undefined, { weekday: 'long' });
+    html += groupHtml('This week', dayName + ' · ' + Math.round(wp * 100) + '% through', [
+      fo && fo.data ? barHtml({ name: 'Workouts', app: 'Forge', value: thisWeek(fo) ? fo.data.weekWorkoutCount : 0, target: fo.data.weekTarget, pace: wp, kind: 'goal',
+                                showV: function (v) { return String(Math.round(v)); },
+                                show: function (v) { return (Math.round(v * 10) / 10) + (Math.round(v) === 1 ? ' workout' : ' workouts'); } }) : '',
+      mi && mi.data ? barHtml({ name: 'Mind time', app: 'Mind', value: thisWeek(mi) ? mi.data.weekMinutesLogged : 0, target: mi.data.weekMinutesTarget, pace: wp, kind: 'goal', show: fmtMins }) : ''
+    ]);
+
+    // ---- this pay period (Finance) ----
+    var fi = get('finance_summary');
+    if (fi && fi.data && fi.data.periodStart && fi.data.periodEnd && new Date(fi.data.periodEnd).getTime() > Date.now()) {
+      var f = fi.data, ps = new Date(f.periodStart).getTime(), pe = new Date(f.periodEnd).getTime(), pp = frac(ps, pe);
+      var cap = f.budgetTotal || f.incomeThisPeriod;
+      var left = Math.max(0, Math.ceil((pe - Date.now()) / 86400000));
+      html += groupHtml(f.periodLabel ? f.periodLabel.replace(/^this /, 'This ') : 'This period', left + (left === 1 ? ' day' : ' days') + ' to go', [
+        barHtml({ name: f.budgetTotal ? 'Spent vs budgets' : 'Spent vs pay', app: 'Finance', value: f.spentThisPeriod, target: cap, pace: pp, kind: 'limit', show: money })
+      ]);
+    }
+
+    if (html) html += '<div class="tr-legend"><i></i>white mark = where you’d be by now at an even pace</div>';
+    return html;
+  }
+
   function renderHome() {
-    var html = APPS.map(appCardHtml).join('');
+    var html = trackingHtml() + APPS.map(appCardHtml).join('');
     html += '<div class="note">Everything here is read from this phone’s own storage. ' +
             'Log in each app as usual and this page catches up automatically.</div>';
     $('screen-home').innerHTML = html;
