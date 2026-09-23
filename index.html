@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Dashboard</title>
+<meta name="theme-color" content="#0A0A0B">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Dashboard">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+  /* Shared ecosystem palette — same as Forge and Fuel. */
+  :root {
+    --bg: #0A0A0B;
+    --surface: #141416;
+    --surface2: #1D1E21;
+    --ink: #F5F5F6;
+    --muted: #8C8D92;
+    --faint: #4E5054;
+    --line: #26272B;
+    --brand: #FF4A16;
+    --brand-ink: #120B07;
+    --gold: #F0B429;
+    --good: #5FBF6E;
+    --font-display: 'Anton', 'Arial Narrow', sans-serif;
+    --font-body: 'Archivo', -apple-system, BlinkMacSystemFont, sans-serif;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin:0; padding:0; height:100%; }
+  body { background: var(--bg); color: var(--ink); font-family: var(--font-body); }
+  ::-webkit-scrollbar { display:none; }
+
+  .app { max-width: 520px; margin: 0 auto; min-height: 100%; display:flex; flex-direction:column; }
+
+  header.topbar {
+    position: sticky; top: 0; z-index: 20; background: var(--bg);
+    padding: calc(env(safe-area-inset-top,0px) + 14px) 18px 12px;
+    border-bottom: 2px solid var(--brand);
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+  }
+  .brand { display:flex; align-items:center; gap:9px; }
+  .brand svg { width:24px; height:24px; flex-shrink:0; }
+  .brand .wordmark {
+    font-size: 19px; letter-spacing: 0.22em; text-transform: uppercase; font-weight:700;
+  }
+  .topbar .sub { font-size: 12px; color: var(--muted); font-weight:700; font-variant-numeric: tabular-nums; }
+
+  main { flex:1; padding: 16px 18px 92px; }
+  .screen { display:none; }
+  .screen.active { display:block; animation: fade .16s ease-out; }
+  @keyframes fade { from { opacity:0; transform: translateY(5px);} to { opacity:1; transform:none; } }
+
+  /* ---- app card ---- */
+  .app-card { background: var(--surface); border:1px solid var(--line); border-radius:16px; padding:15px 16px; margin-bottom:13px; }
+  .app-card.empty { border-style: dashed; }
+  .ac-head { display:flex; align-items:center; gap:10px; margin-bottom:3px; }
+  .ac-bar { width:4px; align-self:stretch; min-height:26px; border-radius:3px; background: var(--brand); flex-shrink:0; margin-left:-4px; }
+  .ac-name { font-family: var(--font-display); font-size:16px; text-transform:uppercase; letter-spacing:0.05em; }
+  .ac-open { margin-left:auto; font-size:11px; font-weight:700; color: var(--brand); text-decoration:none; white-space:nowrap; }
+  .ac-headline { font-size:13.5px; color: var(--ink); margin-bottom:2px; }
+  .ac-when { font-size:10.5px; color: var(--faint); font-weight:700; text-transform:uppercase; letter-spacing:0.05em; }
+  .ac-when.stale { color: var(--gold); }
+  .ac-empty { font-size:13px; color: var(--muted); line-height:1.5; }
+
+  .tiles { display:grid; grid-template-columns: repeat(3, 1fr); gap:7px; margin-top:13px; }
+  .tile { background: var(--surface2); border:1px solid var(--line); border-radius:11px; padding:10px 5px; text-align:center; }
+  .tile .v { font-family: var(--font-display); font-size:19px; line-height:1.1; font-variant-numeric: tabular-nums; }
+  .tile .v .u { font-size:10.5px; color: var(--muted); margin-left:1px; }
+  .tile .v .of { font-size:11px; color: var(--muted); }
+  .tile .l { font-size:9.5px; color: var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:0.04em; margin-top:3px; }
+  .tile.flag .v { color: var(--brand); }
+
+  .note { font-size:11.5px; color: var(--faint); text-align:center; line-height:1.5; margin-top:18px; }
+
+  /* ---- settings ---- */
+  .set-group { margin-bottom:22px; }
+  .set-group h2 { font-family: var(--font-display); font-size:14px; text-transform:uppercase; letter-spacing:0.06em; color: var(--muted); margin:0 0 8px; font-weight:400; }
+  .set-row { display:flex; align-items:center; gap:12px; background: var(--surface); border:1px solid var(--line); border-radius:11px; padding:12px 13px; margin-bottom:7px; }
+  .set-row .sr-name { flex:1; font-size:14px; }
+  .set-row .sr-val { font-size:11.5px; color: var(--faint); font-variant-numeric: tabular-nums; }
+  .switch { width:44px; height:26px; border-radius:999px; background: var(--surface2); border:1px solid var(--line); position:relative; flex-shrink:0; cursor:pointer; transition: background .15s; }
+  .switch::after { content:''; position:absolute; top:2px; left:2px; width:20px; height:20px; border-radius:50%; background: var(--faint); transition: transform .15s, background .15s; }
+  .switch.on { background: var(--brand); border-color: var(--brand); }
+  .switch.on::after { transform: translateX(18px); background: var(--brand-ink); }
+  .set-intro { font-size:12.5px; color: var(--muted); line-height:1.55; margin: 0 0 20px; }
+
+  /* ---- tabbar ---- */
+  nav.tabbar { position:fixed; left:50%; transform:translateX(-50%); bottom:0; width:100%; max-width:520px; z-index:30;
+    background: var(--surface); border-top:1px solid var(--line); padding-bottom: env(safe-area-inset-bottom,0px); display:flex; }
+  .tab { flex:1; border:none; background:none; padding:11px 4px 9px; display:flex; flex-direction:column; align-items:center; gap:3px; color: var(--faint); cursor:pointer; font-family: var(--font-body); }
+  .tab.active { color: var(--brand); }
+  .tab .ic { font-size:17px; }
+  .tab .lb { font-size:10px; font-weight:700; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <span class="brand">
+      <svg viewBox="0 0 40 40" aria-hidden="true">
+        <rect x="4" y="4" width="14" height="14" rx="3" fill="var(--brand)"/>
+        <rect x="22" y="4" width="14" height="14" rx="3" fill="var(--ink)" opacity="0.55"/>
+        <rect x="4" y="22" width="14" height="14" rx="3" fill="var(--ink)" opacity="0.55"/>
+        <rect x="22" y="22" width="14" height="14" rx="3" fill="var(--brand)"/>
+      </svg>
+      <span class="wordmark">Dashboard</span>
+    </span>
+    <span class="sub" id="topSub"></span>
+  </header>
+
+  <main>
+    <section class="screen active" id="screen-home"></section>
+    <section class="screen" id="screen-settings"></section>
+  </main>
+
+  <nav class="tabbar">
+    <button class="tab active" data-screen="home"><span class="ic">&#9636;</span><span class="lb">Dashboard</span></button>
+    <button class="tab" data-screen="settings"><span class="ic">&#9881;</span><span class="lb">Settings</span></button>
+  </nav>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ==================================================================
+     CONFIG — this is the part you edit.
+     ==================================================================
+
+     TO ADD A NEW APP to the dashboard:
+       Copy one of the blocks below, change id / label / key / url,
+       and list the numbers you want from its summary.
+       ("key" must match the localStorage key that app writes —
+        see the App Bundle: Data Sharing Spec.)
+
+     TO ADD A NEW NUMBER to an app already listed:
+       Add one line to its "metrics" list:
+         { id: 'shortName', label: 'What it says', get: function (d) { return d.someField; } }
+       - "d" is that app's summary.data object.
+       - "label" is the small caption under the number.
+       - Optional extras:
+           unit: 'kg'                     -> small unit after the number
+           of: function (d) { ... }       -> shows "/ target" beside it
+           flag: function (d) { ... }     -> true colours the number orange
+           on: false                      -> hidden until switched on in Settings
+       Anything switched off in Settings stays off until you switch it
+       back on — you don't need to edit this file to hide something.
+     ================================================================== */
+
+  var APPS = [
+    {
+      id: 'forge',
+      label: 'Forge',
+      key: 'forge_summary',
+      url: '../Forge/',
+      metrics: [
+        { id: 'week',   label: 'Workouts',  get: function (d) { return d.weekWorkoutCount; },
+                                            of:  function (d) { return d.weekTarget; } },
+        { id: 'streak', label: 'Day streak', get: function (d) { return d.currentStreakDays; },
+                                            flag: function (d) { return d.currentStreakDays >= 3; } },
+        { id: 'today',  label: 'Trained today', get: function (d) { return d.workedOutToday ? 'Yes' : 'No'; },
+                                            flag: function (d) { return d.workedOutToday; } },
+        { id: 'bw',     label: 'Bodyweight', get: function (d) { return d.bodyweightKg; }, unit: 'kg' },
+        { id: 'total',  label: 'Sessions', get: function (d) { return d.totalWorkouts; }, on: false },
+        { id: 'level',  label: 'Level', get: function (d) { return d.level; }, on: false }
+      ]
+    },
+    {
+      id: 'fuel',
+      label: 'Fuel',
+      key: 'fuel_summary',
+      url: '../Fuel/',
+      metrics: [
+        { id: 'kcal',    label: 'Calories', get: function (d) { return d.today && d.today.calories; },
+                                            of:  function (d) { return d.targets && d.targets.calories; } },
+        { id: 'protein', label: 'Protein', get: function (d) { return d.today && d.today.protein_g; }, unit: 'g',
+                                            of:  function (d) { return d.targets && d.targets.protein_g; } },
+        { id: 'fibre',   label: 'Fibre', get: function (d) { return d.today && d.today.fibre_g; }, unit: 'g',
+                                            of:  function (d) { return d.targets && d.targets.fibre_g; } },
+        { id: 'water',   label: 'Water', get: function (d) { return d.today && d.today.water_ml; }, unit: 'ml',
+                                            of:  function (d) { return d.targets && d.targets.water_ml; } }
+      ]
+    },
+    {
+      id: 'mind',
+      label: 'Forge Mind',
+      key: 'mind_summary',
+      url: '../Mind/',
+      metrics: [
+        { id: 'mins',   label: 'Minutes', get: function (d) { return d.weekMinutesLogged; },
+                                          of:  function (d) { return d.weekMinutesTarget; } },
+        { id: 'streak', label: 'Day streak', get: function (d) { return d.currentStreakDays; },
+                                          flag: function (d) { return d.currentStreakDays >= 3; } }
+      ]
+    },
+    {
+      id: 'finance',
+      label: 'Finance',
+      key: 'finance_summary',
+      url: '../Finance/',
+      metrics: [
+        { id: 'left',   label: 'Left of pay', get: function (d) { return nzd(d.leftOfPay); },
+                                             flag: function (d) { return d.leftOfPay !== null && d.leftOfPay < 0; } },
+        { id: 'spent',  label: 'Spent', get: function (d) { return nzd(d.spentThisPeriod); } },
+        { id: 'days',   label: 'Days to go', get: function (d) { return d.daysLeftInPeriod; } },
+        { id: 'bills',  label: 'Bills to come', get: function (d) { return d.upcomingBillsTotal ? nzd(d.upcomingBillsTotal) : null; } },
+        { id: 'over',   label: 'Over budget', get: function (d) { return d.budgetsOver ? d.budgetsOver.length : null; },
+                                             flag: function (d) { return !!(d.budgetsOver && d.budgetsOver.length > 0); } },
+        { id: 'net',    label: 'Net position', get: function (d) { return nzd(d.netPositionNzd); }, on: false }
+      ]
+    }
+  ];
+
+  // Money for a tile: "$1,734". Returns null (tile hidden) when there's no number.
+  function nzd(v) {
+    if (v === null || v === undefined || isNaN(v)) return null;
+    return (v < 0 ? '-$' : '$') + Math.abs(Math.round(v)).toLocaleString();
+  }
+
+  // How old a summary can get before the dashboard flags it as stale.
+  var STALE_AFTER_HOURS = 36;
+
+  /* ================= end of config ================= */
+
+  var PREFS_KEY = 'dashboard_prefs';
+  var $ = function (id) { return document.getElementById(id); };
+
+  function loadPrefs() {
+    try { return JSON.parse(localStorage.getItem(PREFS_KEY) || '{}') || {}; }
+    catch (e) { return {}; }
+  }
+  function savePrefs(p) {
+    try { localStorage.setItem(PREFS_KEY, JSON.stringify(p)); } catch (e) {}
+  }
+  var prefs = loadPrefs();
+  if (!prefs.off) prefs.off = {};              // { "forge:total": true }
+
+  function metricOn(app, m) {
+    var slug = app.id + ':' + m.id;
+    if (Object.prototype.hasOwnProperty.call(prefs.off, slug)) return !prefs.off[slug];
+    return m.on !== false;                      // default from the config above
+  }
+  function setMetric(app, m, on) {
+    prefs.off[app.id + ':' + m.id] = !on;
+    savePrefs(prefs);
+  }
+
+  function readSummary(app) {
+    var raw = null;
+    try { raw = localStorage.getItem(app.key); } catch (e) { return null; }
+    if (!raw) return null;
+    try {
+      var p = JSON.parse(raw);
+      if (!p || typeof p !== 'object' || !p.data) return null;
+      return p;
+    } catch (e) { return null; }
+  }
+
+  function esc(s) {
+    return String(s === null || s === undefined ? '' : s)
+      .replace(/[&<>"']/g, function (c) {
+        return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+      });
+  }
+
+  function hoursSince(iso) {
+    var t = new Date(iso).getTime();
+    if (!t || isNaN(t)) return null;
+    return (Date.now() - t) / 3600000;
+  }
+  function whenText(iso) {
+    var h = hoursSince(iso);
+    if (h === null) return 'updated recently';
+    if (h < 1) return 'updated just now';
+    if (h < 24) return 'updated ' + Math.round(h) + 'h ago';
+    var d = Math.round(h / 24);
+    return 'updated ' + d + (d === 1 ? ' day ago' : ' days ago');
+  }
+
+  function fmt(v) {
+    if (typeof v === 'number') {
+      return (Math.round(v * 10) / 10).toLocaleString();
+    }
+    return esc(v);
+  }
+
+  /* ---- safe metric read: a broken metric never takes the page down ---- */
+  function readMetric(fn, data) {
+    try {
+      var v = fn(data);
+      return (v === undefined || v === null || v === '') ? null : v;
+    } catch (e) { return null; }
+  }
+
+  function tileHtml(m, data) {
+    var v = readMetric(m.get, data);
+    if (v === null) return '';
+    var target = m.of ? readMetric(m.of, data) : null;
+    var flagged = m.flag ? readMetric(m.flag, data) === true : false;
+    return '<div class="tile' + (flagged ? ' flag' : '') + '">' +
+             '<div class="v">' + fmt(v) +
+               (m.unit ? '<span class="u">' + esc(m.unit) + '</span>' : '') +
+               (target ? '<span class="of"> / ' + fmt(target) + '</span>' : '') +
+             '</div>' +
+             '<div class="l">' + esc(m.label) + '</div>' +
+           '</div>';
+  }
+
+  function appCardHtml(app) {
+    var s = readSummary(app);
+
+    if (!s) {
+      return '<div class="app-card empty">' +
+               '<div class="ac-head"><span class="ac-bar" style="background:var(--faint)"></span>' +
+                 '<span class="ac-name">' + esc(app.label) + '</span>' +
+                 '<a class="ac-open" href="' + esc(app.url) + '">Open &rsaquo;</a></div>' +
+               '<div class="ac-empty">Nothing here yet. Open ' + esc(app.label) +
+                 ' on this phone and log something — it\'ll show up here.</div>' +
+             '</div>';
+    }
+
+    var tiles = app.metrics.filter(function (m) { return metricOn(app, m); })
+                           .map(function (m) { return tileHtml(m, s.data); })
+                           .join('');
+    var h = hoursSince(s.updatedAt);
+    var stale = h !== null && h > STALE_AFTER_HOURS;
+
+    return '<div class="app-card">' +
+             '<div class="ac-head"><span class="ac-bar"></span>' +
+               '<span class="ac-name">' + esc(app.label) + '</span>' +
+               '<a class="ac-open" href="' + esc(app.url) + '">Open &rsaquo;</a></div>' +
+             (s.headline ? '<div class="ac-headline">' + esc(s.headline) + '</div>' : '') +
+             '<div class="ac-when' + (stale ? ' stale' : '') + '">' + esc(whenText(s.updatedAt)) + '</div>' +
+             (tiles ? '<div class="tiles">' + tiles + '</div>' : '') +
+           '</div>';
+  }
+
+  function renderHome() {
+    var html = APPS.map(appCardHtml).join('');
+    html += '<div class="note">Everything here is read from this phone’s own storage. ' +
+            'Log in each app as usual and this page catches up automatically.</div>';
+    $('screen-home').innerHTML = html;
+  }
+
+  function renderSettings() {
+    var html = '<p class="set-intro">Pick what shows on the dashboard. ' +
+               'Switching something off just hides the tile — nothing is deleted, ' +
+               'and you can switch it back on any time.</p>';
+
+    html += APPS.map(function (app) {
+      var s = readSummary(app);
+      var rows = app.metrics.map(function (m) {
+        var v = s ? readMetric(m.get, s.data) : null;
+        return '<div class="set-row">' +
+                 '<span class="sr-name">' + esc(m.label) + '</span>' +
+                 '<span class="sr-val">' + (v === null ? '–' : fmt(v)) + '</span>' +
+                 '<button class="switch' + (metricOn(app, m) ? ' on' : '') + '" ' +
+                   'data-app="' + esc(app.id) + '" data-metric="' + esc(m.id) + '" ' +
+                   'aria-label="Show ' + esc(m.label) + '"></button>' +
+               '</div>';
+      }).join('');
+      return '<div class="set-group"><h2>' + esc(app.label) + '</h2>' + rows + '</div>';
+    }).join('');
+
+    $('screen-settings').innerHTML = html;
+
+    Array.prototype.forEach.call($('screen-settings').querySelectorAll('.switch'), function (btn) {
+      btn.addEventListener('click', function () {
+        var app = APPS.filter(function (a) { return a.id === btn.dataset.app; })[0];
+        if (!app) return;
+        var m = app.metrics.filter(function (x) { return x.id === btn.dataset.metric; })[0];
+        if (!m) return;
+        var nowOn = !btn.classList.contains('on');
+        btn.classList.toggle('on', nowOn);
+        setMetric(app, m, nowOn);
+        renderHome();
+      });
+    });
+  }
+
+  function switchScreen(name) {
+    Array.prototype.forEach.call(document.querySelectorAll('.screen'), function (s) { s.classList.remove('active'); });
+    $('screen-' + name).classList.add('active');
+    Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (t) {
+      t.classList.toggle('active', t.dataset.screen === name);
+    });
+    if (name === 'settings') renderSettings(); else renderHome();
+    window.scrollTo(0, 0);
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (t) {
+    t.addEventListener('click', function () { switchScreen(t.dataset.screen); });
+  });
+
+  // Coming back to the tab after logging something elsewhere should refresh.
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) renderHome();
+  });
+
+  function boot() {
+    $('topSub').textContent = new Date().toLocaleDateString(undefined, { weekday:'short', day:'numeric', month:'short' });
+    renderHome();
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(function () {});
+    }
+  }
+
+  boot();
+})();
+</script>
+</body>
+</html>
