@@ -81,6 +81,26 @@
   .tile .l { font-size:9.5px; color: var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:0.04em; margin-top:3px; }
   .tile.flag .v { color: var(--brand); }
 
+  /* ---- trend charts ---- */
+  .trends { display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:13px; }
+  .tc { background: var(--surface); border:1px solid var(--line); border-radius:14px; padding:11px 12px 10px; position:relative; min-width:0; }
+  .tc-top { display:flex; justify-content:space-between; align-items:baseline; gap:6px; }
+  .tc-l { font-size:10px; font-weight:700; color: var(--muted); text-transform:uppercase; letter-spacing:0.05em; }
+  .tc-open { font-size:10px; font-weight:700; color: var(--brand); text-decoration:none; }
+  .tc-v { font-family: var(--font-display); font-size:21px; margin:3px 0 4px; font-variant-numeric: tabular-nums; white-space:nowrap; }
+  .tc-v small { font-family: var(--font-body); font-size:11px; color: var(--muted); font-weight:700; }
+  .tc svg { display:block; width:100%; height:52px; overflow:visible; }
+  .tc-note { font-size:10.5px; font-weight:700; color: var(--muted); margin-top:5px; line-height:1.35; }
+  .tc-tip { position:absolute; left:12px; right:12px; top:8px; background: var(--ink); color: var(--bg); font-size:11px; font-weight:700;
+            border-radius:8px; padding:5px 8px; display:none; z-index:2; }
+  .tc-tip.show { display:block; }
+  .tc-empty { font-size:11.5px; color: var(--faint); line-height:1.45; padding:12px 0 6px; }
+  .tc-seg { display:flex; gap:4px; }
+  .tc-seg button { background: var(--surface2); border:1px solid var(--line); color: var(--muted); font:inherit; font-size:9.5px; font-weight:700;
+                   border-radius:6px; padding:2px 6px; cursor:pointer; text-transform:uppercase; }
+  .tc-seg button.on { color: var(--ink); border-color: var(--muted); }
+  .hit { fill: transparent; cursor:pointer; }
+
   /* ---- worth thinking about ---- */
   .ins { background: var(--surface); border:1px solid var(--line); border-radius:16px; padding:14px 16px 8px; margin-bottom:13px; }
   .ins-item { display:flex; gap:11px; align-items:flex-start; padding:9px 0; border-top:1px solid var(--line); text-decoration:none; color: var(--ink); }
@@ -460,10 +480,13 @@
     var fi = get('finance_summary');
     if (fi && fi.data && fi.data.periodStart && fi.data.periodEnd && new Date(fi.data.periodEnd).getTime() > Date.now()) {
       var f = fi.data, ps = new Date(f.periodStart).getTime(), pe = new Date(f.periodEnd).getTime(), pp = frac(ps, pe);
-      var cap = f.budgetTotal || f.incomeThisPeriod;
+      // Budgets only cover some categories, so compare like with like:
+      // spending in budgeted categories vs the budget total; otherwise all spending vs pay.
+      var useBudget = f.budgetTotal && f.spentInBudgets !== undefined;
+      var cap = useBudget ? f.budgetTotal : f.incomeThisPeriod;
       var left = Math.max(0, Math.ceil((pe - Date.now()) / 86400000));
       html += groupHtml(f.periodLabel ? f.periodLabel.replace(/^this /, 'This ') : 'This period', left + (left === 1 ? ' day' : ' days') + ' to go', [
-        barHtml({ name: f.budgetTotal ? 'Spent vs budgets' : 'Spent vs pay', app: 'Finance', value: f.spentThisPeriod, target: cap, pace: pp, kind: 'limit', show: money })
+        barHtml({ name: useBudget ? 'Budgeted spending' : 'Spent vs pay', app: 'Finance', value: useBudget ? f.spentInBudgets : f.spentThisPeriod, target: cap, pace: pp, kind: 'limit', show: money })
       ]);
     }
 
@@ -674,11 +697,190 @@
            '</div>';
   }
 
+
+  /* ================= TREND CHARTS =================
+     One small chart per app, built from the history each app shares.
+     Orange = your numbers; dashed lines = targets and comparisons;
+     green/amber bars = hit / missed target (the note below each chart
+     says the same in words). Tap a bar or point to see its value. */
+
+  var CHARTS = [
+    { id: 'weight',  label: 'Bodyweight',            app: 'Forge' },
+    { id: 'fuel',    label: 'Protein / calories',    app: 'Fuel' },
+    { id: 'mind',    label: 'Mind time',              app: 'Mind' },
+    { id: 'spend',   label: 'Spending vs last period', app: 'Finance' }
+  ];
+  if (!prefs.chartsOff) prefs.chartsOff = {};
+  var VW = 150, VH = 52;   // chart drawing area (scaled to fit the card)
+
+  function shortDate(ymd) { var p = ymd.split('-').map(Number); return new Date(p[0], p[1] - 1, p[2]).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }); }
+  function scaleY(lo, hi) { if (hi - lo < 1e-9) { hi = lo + 1; } return function (v) { return (VH - 4) - (v - lo) / (hi - lo) * (VH - 10); }; }
+  function refLine(y, colour, label) {
+    return '<line x1="0" x2="' + VW + '" y1="' + y.toFixed(1) + '" y2="' + y.toFixed(1) + '" stroke="' + colour + '" stroke-width="1" stroke-dasharray="3 3" opacity=".75"/>';
+  }
+  // Bars: values[] (null = no data), each with its own colour and tip.
+  function barsSvg(items, lo, hi, target) {
+    var n = items.length, gap = 2, bw = (VW - gap * (n - 1)) / n, y = scaleY(lo, hi), base = VH - 2;
+    var out = '';
+    items.forEach(function (it, i) {
+      var x = i * (bw + gap);
+      if (it.v !== null && it.v !== undefined) {
+        var top = Math.min(base - 2, y(it.v));
+        out += '<rect x="' + x.toFixed(1) + '" y="' + top.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + (base - top).toFixed(1) + '" rx="2" fill="' + it.c + '"' + (it.o ? ' opacity="' + it.o + '"' : '') + '/>';
+      } else {
+        out += '<rect x="' + x.toFixed(1) + '" y="' + (base - 2) + '" width="' + bw.toFixed(1) + '" height="2" rx="1" fill="var(--surface2)"/>';
+      }
+      out += '<rect class="hit" x="' + (x - gap / 2).toFixed(1) + '" y="0" width="' + (bw + gap).toFixed(1) + '" height="' + VH + '" data-tip="' + esc(it.tip) + '"/>';
+    });
+    if (target) out = refLine(y(target), 'var(--muted)') + out;
+    return '<svg viewBox="0 0 ' + VW + ' ' + VH + '" preserveAspectRatio="none">' + out + '</svg>';
+  }
+  // Lines: series = [{ pts: [values by x index, null = gap], colour, dash, width }], n = x slots.
+  function linesSvg(series, n, lo, hi, refs, tips) {
+    var y = scaleY(lo, hi), x = function (i) { return n <= 1 ? VW / 2 : i / (n - 1) * VW; };
+    var out = (refs || []).map(function (r) { return refLine(y(r.v), r.c); }).join('');
+    series.forEach(function (s) {
+      var d = '', pen = false;
+      s.pts.forEach(function (v, i) {
+        if (v === null || v === undefined) { pen = false; return; }
+        d += (pen ? ' L' : ' M') + x(i).toFixed(1) + ',' + y(v).toFixed(1); pen = true;
+      });
+      if (d) out += '<path d="' + d + '" fill="none" stroke="' + s.colour + '" stroke-width="' + (s.width || 2) + '" stroke-linejoin="round" stroke-linecap="round"' + (s.dash ? ' stroke-dasharray="' + s.dash + '"' : '') + (s.o ? ' opacity="' + s.o + '"' : '') + '/>';
+      if (s.dots) s.pts.forEach(function (v, i) { if (v !== null && v !== undefined) out += '<circle cx="' + x(i).toFixed(1) + '" cy="' + y(v).toFixed(1) + '" r="1.6" fill="' + s.colour + '" opacity=".45"/>'; });
+    });
+    if (tips) for (var i = 0; i < n; i++) if (tips[i]) {
+      var w = VW / Math.max(1, n - 1);
+      out += '<rect class="hit" x="' + (x(i) - w / 2).toFixed(1) + '" y="0" width="' + w.toFixed(1) + '" height="' + VH + '" data-tip="' + esc(tips[i]) + '"/>';
+    }
+    return '<svg viewBox="0 0 ' + VW + ' ' + VH + '" preserveAspectRatio="none">' + out + '</svg>';
+  }
+  function chartCard(c, url, valueHtml, svg, note, extraTop) {
+    return '<div class="tc" data-chart="' + c.id + '"><div class="tc-tip"></div>' +
+             '<div class="tc-top"><span class="tc-l">' + esc(c.label) + '</span>' + (extraTop || '<a class="tc-open" href="' + url + '">' + esc(c.app) + ' ›</a>') + '</div>' +
+             (svg ? '<div class="tc-v">' + valueHtml + '</div>' + svg + '<div class="tc-note">' + note + '</div>'
+                  : '<div class="tc-empty">' + note + '</div>') +
+           '</div>';
+  }
+  function lastNDays(n) { var out = [], d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - (n - 1)); for (var i = 0; i < n; i++) { out.push(ymdLocal(d)); d.setDate(d.getDate() + 1); } return out; }
+
+  function weightChart(c) {
+    var s = readSummary({ key: 'forge_summary' }), h = s && s.data && s.data.bodyweightHistory;
+    var days = lastNDays(28);
+    var byDay = {}; (h || []).forEach(function (b) { byDay[b.date] = b.kg; });
+    var raw = days.map(function (d) { return byDay[d] === undefined ? null : byDay[d]; });
+    var have = raw.filter(function (v) { return v !== null; });
+    if (have.length < 2) return chartCard(c, '../Forge/', '', '', 'Weigh in a few times in Forge and your 4-week trend shows here.');
+    // 7-day average smooths out day-to-day water swings
+    var avg = days.map(function (d, i) {
+      var win = raw.slice(Math.max(0, i - 6), i + 1).filter(function (v) { return v !== null; });
+      return win.length ? win.reduce(function (a, b) { return a + b; }, 0) / win.length : null;
+    });
+    var firstI = raw.findIndex(function (v) { return v !== null; });
+    for (var i = 0; i < firstI; i++) avg[i] = null;
+    var goal = s.data.bodyweightGoalKg;
+    var lo = Math.min.apply(null, have), hi = Math.max.apply(null, have);
+    if (goal && goal >= lo - 3 && goal <= hi + 3) { lo = Math.min(lo, goal); hi = Math.max(hi, goal); }
+    var pad = Math.max(0.4, (hi - lo) * 0.15); lo -= pad; hi += pad;
+    var nowAvg = avg.filter(function (v) { return v !== null; }).slice(-1)[0], startAvg = avg.filter(function (v) { return v !== null; })[0];
+    var change = nowAvg - startAvg;
+    var toward = goal ? (Math.abs(nowAvg - goal) < Math.abs(startAvg - goal)) : null;
+    var note = (Math.abs(change) < 0.1 ? 'Steady' : (change > 0 ? '▲ ' : '▼ ') + Math.abs(change).toFixed(1) + ' kg') + ' over 4 weeks' +
+               (goal ? ' · goal ' + goal + ' kg' + (Math.abs(change) >= 0.1 ? (toward ? ' ✓ right way' : ' — wrong way') : '') : '');
+    var tips = days.map(function (d, i) { return raw[i] !== null ? shortDate(d) + ' · ' + raw[i].toFixed(1) + ' kg (avg ' + avg[i].toFixed(1) + ')' : null; });
+    var svg = linesSvg([{ pts: raw, colour: 'var(--brand)', width: 0, dots: true }, { pts: avg, colour: 'var(--brand)', width: 2.2 }],
+                       days.length, lo, hi, goal && goal >= lo && goal <= hi ? [{ v: goal, c: 'var(--good)' }] : [], tips);
+    return chartCard(c, '../Forge/', nowAvg.toFixed(1) + ' <small>kg avg</small>', svg, note);
+  }
+
+  function fuelChart(c) {
+    var s = readSummary({ key: 'fuel_summary' }), d = s && s.data;
+    var mode = prefs.fuelChart === 'calories' ? 'calories' : 'protein';
+    var seg = '<span class="tc-seg"><button data-fuelmode="protein"' + (mode === 'protein' ? ' class="on"' : '') + '>Protein</button>' +
+              '<button data-fuelmode="calories"' + (mode === 'calories' ? ' class="on"' : '') + '>kcal</button></span>';
+    var lab = { id: 'fuel', label: 'Fuel', app: 'Fuel' };
+    if (!d || !(d.history || []).length) return chartCard(lab, '../Fuel/', '', '', 'Log food in Fuel and your last two weeks show here.', seg);
+    var key = mode === 'protein' ? 'protein_g' : 'calories', unit = mode === 'protein' ? 'g' : ' kcal';
+    var target = (d.targets || {})[key];
+    var byDay = {}; d.history.forEach(function (h) { if (h.items > 0) byDay[h.date] = h[key]; });
+    var days = lastNDays(14), today = ymdLocal(new Date());
+    var vals = days.map(function (x) { return byDay[x] === undefined ? null : byDay[x]; });
+    var logged = days.filter(function (x) { return x !== today && byDay[x] !== undefined; });
+    var hits = logged.filter(function (x) { return target && (mode === 'protein' ? byDay[x] >= target * 0.9 : byDay[x] <= target * 1.05); }).length;
+    var avg = logged.length ? logged.reduce(function (a, x) { return a + byDay[x]; }, 0) / logged.length : null;
+    var hi = Math.max.apply(null, vals.filter(function (v) { return v !== null; }).concat([target || 0])) * 1.08;
+    var items = days.map(function (x, i) {
+      var v = vals[i], ok = target && v !== null && (mode === 'protein' ? v >= target * 0.9 : v <= target * 1.05);
+      return { v: v, c: !target ? 'var(--brand)' : ok ? 'var(--good)' : 'var(--gold)', o: x === today ? 0.5 : null,
+               tip: shortDate(x) + (x === today ? ' (so far)' : '') + ' · ' + (v === null ? 'nothing logged' : num(v) + unit + (target ? ' of ' + num(target) + unit : '')) };
+    });
+    var note = target ? (mode === 'protein' ? 'Target hit ' : 'Under target ') + hits + ' of ' + logged.length + ' logged days' : 'Set a target in Fuel to compare';
+    return chartCard(lab, '../Fuel/', (avg === null ? '–' : num(avg)) + ' <small>' + (mode === 'protein' ? 'g' : 'kcal') + ' avg</small>', barsSvg(items, 0, hi, target), note, seg);
+  }
+
+  function mindChart(c) {
+    var s = readSummary({ key: 'mind_summary' }), w = s && s.data && s.data.weeklyTotals;
+    if (!w || !w.length) return chartCard(c, '../Mind/', '', '', 'Log time in Mind and your last 8 weeks show here.');
+    var target = w[w.length - 1].target;
+    var hi = Math.max.apply(null, w.map(function (x) { return x.mins; }).concat([target || 0])) * 1.08;
+    var items = w.map(function (x, i) {
+      var cur = i === w.length - 1, ok = target && x.mins >= target;
+      return { v: x.mins, c: ok ? 'var(--good)' : cur ? 'var(--brand)' : 'var(--gold)', o: cur && !ok ? 0.55 : null,
+               tip: 'Week of ' + shortDate(x.week) + (cur ? ' (so far)' : '') + ' · ' + fmtMins(x.mins) + (target ? ' of ' + fmtMins(target) : '') };
+    });
+    var past = w.slice(0, -1), hitWeeks = target ? past.filter(function (x) { return x.mins >= target; }).length : 0;
+    var note = target ? 'Target hit ' + hitWeeks + ' of the last ' + past.length + ' weeks · this week faded' : '';
+    return chartCard(c, '../Mind/', fmtMins(w[w.length - 1].mins) + ' <small>this week</small>', barsSvg(items, 0, hi, target), note);
+  }
+
+  function spendChart(c) {
+    var s = readSummary({ key: 'finance_summary' }), d = s && s.data;
+    if (!d || !(d.spendByDay || []).length) return chartCard(c, '../Finance/', '', '', 'Open Finance to pull in your spending and see it against last period here.');
+    var cur = d.spendByDay, last = d.lastPeriodByDay || [];
+    var n = Math.max(cur.length, last.length, 2);
+    var budget = d.incomeThisPeriod || null;   // reference line: this period's pay
+    // Scale to the spending itself so the lines are readable; only show the
+    // pay line when it's close enough to matter.
+    var hi = Math.max.apply(null, cur.concat(last).concat([1])) * 1.1;
+    if (budget && budget <= hi * 1.4) hi = Math.max(hi, budget * 1.05); else budget = null;
+    var i = cur.length - 1, then = last[Math.min(i, last.length - 1)];
+    var diff = (then === undefined) ? null : cur[i] - then;
+    var note = diff === null ? 'No last period to compare yet'
+             : (Math.abs(diff) < 5 ? 'Same as this point last period' : money(Math.abs(diff)) + (diff > 0 ? ' more' : ' less') + ' than this point last ' + (/fortnight/.test(d.periodLabel || '') ? 'fortnight' : 'month') + ' (dashed)');
+    var tips = []; for (var k = 0; k < n; k++) tips.push('Day ' + (k + 1) + ' · ' + (cur[k] !== undefined ? money(cur[k]) + ' this period' : 'still to come') + (last[k] !== undefined ? ' · ' + money(last[k]) + ' last' : ''));
+    var svg = linesSvg([{ pts: last, colour: 'var(--muted)', dash: '4 3', width: 1.6 }, { pts: cur, colour: 'var(--brand)', width: 2.4 }], n, 0, hi,
+                       budget ? [{ v: budget, c: 'var(--danger)' }] : [], tips);
+    var label = { id: 'spend', label: 'Spending', app: 'Finance' };
+    return chartCard(label, '../Finance/', money(d.spentThisPeriod) + (d.incomeThisPeriod ? ' <small>of ' + money(d.incomeThisPeriod) + ' pay</small>' : ''), svg,
+                     '<span style="color:' + (diff > 0 ? 'var(--gold)' : 'var(--muted)') + '">' + note + '</span>');
+  }
+
+  function trendsHtml() {
+    var make = { weight: weightChart, fuel: fuelChart, mind: mindChart, spend: spendChart };
+    var cards = CHARTS.filter(function (c) { return !prefs.chartsOff[c.id]; }).map(function (c) {
+      try { return make[c.id](c); } catch (e) { return ''; }   // one broken chart never takes the page down
+    }).join('');
+    return cards ? '<div class="trends">' + cards + '</div>' : '';
+  }
+  function wireTrends(root) {
+    Array.prototype.forEach.call(root.querySelectorAll('.tc .hit'), function (h) {
+      h.addEventListener('click', function (e) {
+        var card = h.closest('.tc'), tip = card.querySelector('.tc-tip');
+        tip.textContent = h.getAttribute('data-tip'); tip.classList.add('show');
+        clearTimeout(tip._t); tip._t = setTimeout(function () { tip.classList.remove('show'); }, 2500);
+        e.stopPropagation();
+      });
+    });
+    Array.prototype.forEach.call(root.querySelectorAll('[data-fuelmode]'), function (b) {
+      b.addEventListener('click', function () { prefs.fuelChart = b.dataset.fuelmode; savePrefs(prefs); renderHome(); });
+    });
+  }
+
   function renderHome() {
-    var html = insightsHtml() + trackingHtml() + APPS.map(appCardHtml).join('');
+    var html = insightsHtml() + trackingHtml() + trendsHtml();
     html += '<div class="note">Everything here is read from this phone’s own storage. ' +
             'Log in each app as usual and this page catches up automatically.</div>';
     $('screen-home').innerHTML = html;
+    wireTrends($('screen-home'));
     if ($('insToggle')) $('insToggle').addEventListener('click', function () {
       prefs.insightsFolded = !prefs.insightsFolded; savePrefs(prefs); renderHome();
     });
@@ -686,36 +888,18 @@
   }
 
   function renderSettings() {
-    var html = '<p class="set-intro">Pick what shows on the dashboard. ' +
-               'Switching something off just hides the tile — nothing is deleted, ' +
-               'and you can switch it back on any time.</p>';
-
-    html += APPS.map(function (app) {
-      var s = readSummary(app);
-      var rows = app.metrics.map(function (m) {
-        var v = s ? readMetric(m.get, s.data) : null;
-        return '<div class="set-row">' +
-                 '<span class="sr-name">' + esc(m.label) + '</span>' +
-                 '<span class="sr-val">' + (v === null ? '–' : fmt(v)) + '</span>' +
-                 '<button class="switch' + (metricOn(app, m) ? ' on' : '') + '" ' +
-                   'data-app="' + esc(app.id) + '" data-metric="' + esc(m.id) + '" ' +
-                   'aria-label="Show ' + esc(m.label) + '"></button>' +
-               '</div>';
-      }).join('');
-      return '<div class="set-group"><h2>' + esc(app.label) + '</h2>' + rows + '</div>';
-    }).join('');
-
+    var html = '<p class="set-intro">Pick which charts show on the dashboard. ' +
+               'Switching one off just hides it \u2014 nothing is deleted.</p>';
+    html += '<div class="set-group"><h2>Charts</h2>' + CHARTS.map(function (c) {
+      return '<div class="set-row"><span class="sr-name">' + esc(c.label) + '</span><span class="sr-val">' + esc(c.app) + '</span>' +
+               '<button class="switch' + (prefs.chartsOff[c.id] ? '' : ' on') + '" data-chart="' + c.id + '" aria-label="Show ' + esc(c.label) + '"></button></div>';
+    }).join('') + '</div>';
     $('screen-settings').innerHTML = html;
-
     Array.prototype.forEach.call($('screen-settings').querySelectorAll('.switch'), function (btn) {
       btn.addEventListener('click', function () {
-        var app = APPS.filter(function (a) { return a.id === btn.dataset.app; })[0];
-        if (!app) return;
-        var m = app.metrics.filter(function (x) { return x.id === btn.dataset.metric; })[0];
-        if (!m) return;
-        var nowOn = !btn.classList.contains('on');
-        btn.classList.toggle('on', nowOn);
-        setMetric(app, m, nowOn);
+        var on = !btn.classList.contains('on');
+        btn.classList.toggle('on', on);
+        prefs.chartsOff[btn.dataset.chart] = !on; savePrefs(prefs);
         renderHome();
       });
     });
