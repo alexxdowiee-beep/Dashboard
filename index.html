@@ -186,12 +186,24 @@
   </main>
 
   <nav class="tabbar">
-    <button class="tab active" data-screen="home"><span class="ic">&#9636;</span><span class="lb">Dashboard</span></button>
+    <button class="tab active" data-screen="home"><span class="ic">&#8962;</span><span class="lb">Home</span></button>
     <button class="tab" data-screen="settings"><span class="ic">&#9881;</span><span class="lb">Settings</span></button>
   </nav>
 </div>
 
 <script>
+
+  // Shared date format across all apps (NZ style): "Thu 24 Sep", "24 Sep", "24 September", "Thursday"
+  function fmtDate(d, opt) {
+    var DS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], DL = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    var MS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var ML = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    opt = opt || {}; var out = [];
+    if (opt.weekday) out.push(opt.weekday === 'long' ? DL[d.getDay()] : DS[d.getDay()]);
+    if (opt.day) out.push(d.getDate());
+    if (opt.month) out.push(opt.month === 'long' ? ML[d.getMonth()] : MS[d.getMonth()]);
+    return out.join(' ');
+  }
 (function () {
   "use strict";
 
@@ -506,7 +518,7 @@
     var wp = frac(ws.getTime(), we.getTime());
     var thisWeek = function (s) { return s && new Date(s.updatedAt).getTime() >= ws.getTime(); };
     var fo = get('forge_summary'), mi = get('mind_summary');
-    var dayName = new Date().toLocaleDateString(undefined, { weekday: 'long' });
+    var dayName = fmtDate(new Date(), { weekday: 'long' });
     html += groupHtml('This week', dayName + ' · ' + Math.round(wp * 100) + '% through', [
       fo && fo.data ? barHtml({ name: 'Workouts', app: 'Forge', value: thisWeek(fo) ? fo.data.weekWorkoutCount : 0, target: fo.data.weekTarget, pace: wp, kind: 'goal',
                                 showV: function (v) { return String(Math.round(v)); },
@@ -751,7 +763,7 @@
   if (!prefs.chartsOff) prefs.chartsOff = {};
   var VW = 150, VH = 52;   // chart drawing area (scaled to fit the card)
 
-  function shortDate(ymd) { var p = ymd.split('-').map(Number); return new Date(p[0], p[1] - 1, p[2]).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }); }
+  function shortDate(ymd) { var p = ymd.split('-').map(Number); return fmtDate(new Date(p[0], p[1] - 1, p[2]), { day: 'numeric', month: 'short' }); }
   function scaleY(lo, hi) { if (hi - lo < 1e-9) { hi = lo + 1; } return function (v) { return (VH - 4) - (v - lo) / (hi - lo) * (VH - 10); }; }
   function refLine(y, colour, label) {
     return '<line x1="0" x2="' + VW + '" y1="' + y.toFixed(1) + '" y2="' + y.toFixed(1) + '" stroke="' + colour + '" stroke-width="1" stroke-dasharray="3 3" opacity=".75"/>';
@@ -962,7 +974,7 @@
   });
 
   function boot() {
-    $('topSub').textContent = new Date().toLocaleDateString(undefined, { weekday:'short', day:'numeric', month:'short' });
+    $('topSub').textContent = fmtDate(new Date(), { weekday:'short', day:'numeric', month:'short' });
     renderHome();
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js').catch(function () {});
