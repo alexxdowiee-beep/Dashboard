@@ -126,6 +126,12 @@
   .tr-title { font-family: var(--font-display); font-size:15px; text-transform:uppercase; letter-spacing:0.06em; }
   .tr-when { font-size:10.5px; color: var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:0.05em; }
   .pb { margin-bottom:13px; }
+  .rings { display:grid; gap:6px; text-align:center; padding-bottom:10px; }
+  .ring svg { width:100%; max-width:80px; height:auto; display:block; margin:0 auto; }
+  .ring .rv { fill: var(--ink); font-family: var(--font-display); font-size:16px; }
+  .ring .rt { fill: var(--muted); font-size:9.5px; font-weight:700; }
+  .ring .rl { font-size:10px; font-weight:700; color: var(--muted); text-transform:uppercase; letter-spacing:0.04em; margin-top:5px; }
+  .ring .rs { font-size:10.5px; font-weight:700; margin-top:1px; }
   .pb-top { display:flex; justify-content:space-between; align-items:baseline; gap:10px; margin-bottom:5px; }
   .pb-name { font-size:13px; font-weight:600; white-space:nowrap; }
   .pb-name .app { color: var(--faint); font-weight:700; font-size:10px; text-transform:uppercase; letter-spacing:0.05em; margin-left:5px; }
@@ -440,6 +446,33 @@
              (o.pace > 0 && o.pace < 1 ? '<div class="pb-pace" style="left:calc(' + (o.pace * 100).toFixed(1) + '% - 1px)"></div>' : '') +
            '</div><div class="pb-note" style="color:' + colour + '">' + note + '</div></div>';
   }
+  // Today's targets as rings: fills as you go, white tick = where you'd be
+  // by now at an even pace. Same colour rules as the bars.
+  function ringHtml(o) {
+    if (!(o.target > 0) || o.value === null || o.value === undefined) return '';
+    var size = 76, sw = 8, r = (size - sw) / 2, c = 2 * Math.PI * r, cx = size / 2;
+    var f = Math.min(1, o.value / o.target), expected = o.target * o.pace, colour, word;
+    if (o.kind === 'goal') {
+      if (o.value >= o.target) { colour = 'var(--good)'; word = 'Done ✓'; }
+      else if (o.value >= expected - o.target * 0.03) { colour = 'var(--good)'; word = 'On track'; }
+      else { colour = 'var(--gold)'; word = 'Behind'; }
+    } else {
+      if (o.value > o.target) { colour = 'var(--danger)'; word = 'Over'; }
+      else if (o.value > expected + o.target * 0.03) { colour = 'var(--gold)'; word = 'Ahead of pace'; }
+      else { colour = 'var(--good)'; word = num(o.target - o.value) + ' left'; }
+    }
+    var a = o.pace * 2 * Math.PI - Math.PI / 2, tick = '';
+    if (o.pace > 0 && o.pace < 1) tick = '<line x1="' + (cx + Math.cos(a) * (r - sw / 2 - 1)).toFixed(1) + '" y1="' + (cx + Math.sin(a) * (r - sw / 2 - 1)).toFixed(1) +
+      '" x2="' + (cx + Math.cos(a) * (r + sw / 2 + 1)).toFixed(1) + '" y2="' + (cx + Math.sin(a) * (r + sw / 2 + 1)).toFixed(1) + '" stroke="var(--ink)" stroke-width="2"/>';
+    var tip = o.name + ': ' + o.show(o.value) + ' of ' + o.show(o.target) + ' ' + o.unit;
+    return '<div class="ring" title="' + esc(tip) + '"><svg viewBox="0 0 ' + size + ' ' + size + '" role="img" aria-label="' + esc(tip) + '">' +
+             '<circle cx="' + cx + '" cy="' + cx + '" r="' + r + '" fill="none" stroke="var(--surface2)" stroke-width="' + sw + '"/>' +
+             (f > 0 ? '<circle cx="' + cx + '" cy="' + cx + '" r="' + r + '" fill="none" stroke="' + colour + '" stroke-width="' + sw + '" stroke-linecap="round" stroke-dasharray="' +
+               (c * f).toFixed(1) + ' ' + c.toFixed(1) + '" transform="rotate(-90 ' + cx + ' ' + cx + ')"/>' : '') + tick +
+             '<text x="' + cx + '" y="' + (cx + 1) + '" text-anchor="middle" class="rv">' + o.show(o.value) + '</text>' +
+             '<text x="' + cx + '" y="' + (cx + 15) + '" text-anchor="middle" class="rt">/ ' + o.show(o.target) + (o.unit === 'kcal' ? '' : o.unit) + '</text></svg>' +
+           '<div class="rl">' + esc(o.name) + '</div><div class="rs" style="color:' + colour + '">' + word + '</div></div>';
+  }
   function groupHtml(title, when, bars) {
     bars = bars.filter(Boolean);
     if (!bars.length) return '';
@@ -455,12 +488,14 @@
     var fu = get('fuel_summary');
     if (fu && fu.data && fu.data.date === today) {
       var d = fu.data, t = d.today || {}, tg = d.targets || {}, dp = dayPace();
-      html += groupHtml('Today', Math.round(dp * 100) + '% through the day', [
-        barHtml({ name: 'Calories', app: 'Fuel', value: t.calories, target: tg.calories, pace: dp, kind: 'limit', show: function (v) { return num(v) + ' kcal'; } }),
-        barHtml({ name: 'Protein', app: 'Fuel', value: t.protein_g, target: tg.protein_g, pace: dp, kind: 'goal', show: function (v) { return num(v) + 'g'; } }),
-        barHtml({ name: 'Fibre', app: 'Fuel', value: t.fibre_g, target: tg.fibre_g, pace: dp, kind: 'goal', show: function (v) { return num(v) + 'g'; } }),
-        barHtml({ name: 'Water', app: 'Fuel', value: t.water_ml, target: tg.water_ml, pace: dp, kind: 'goal', show: function (v) { return (v / 1000).toFixed(1) + ' L'; } })
-      ]);
+      var rings = [
+        ringHtml({ name: 'Calories', value: t.calories, target: tg.calories, pace: dp, kind: 'limit', show: num, unit: 'kcal' }),
+        ringHtml({ name: 'Protein', value: t.protein_g, target: tg.protein_g, pace: dp, kind: 'goal', show: num, unit: 'g' }),
+        ringHtml({ name: 'Fibre', value: t.fibre_g, target: tg.fibre_g, pace: dp, kind: 'goal', show: num, unit: 'g' }),
+        ringHtml({ name: 'Water', value: t.water_ml, target: tg.water_ml, pace: dp, kind: 'goal', show: function (v) { return (v / 1000).toFixed(1); }, unit: 'L' })
+      ].filter(Boolean);
+      if (rings.length) html += '<div class="track"><div class="tr-head"><span class="tr-title">Today</span><span class="tr-when">' +
+        Math.round(dp * 100) + '% through the day</span></div><div class="rings" style="grid-template-columns:repeat(' + rings.length + ',1fr)">' + rings.join('') + '</div></div>';
     }
 
     // ---- this week (Forge, Mind) — Monday to Sunday ----
