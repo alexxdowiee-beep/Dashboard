@@ -596,40 +596,38 @@
         var when = (s0.d === null || s0.d === undefined) ? 'in the last few months' : 'in ' + s0.d + ' days';
         var others = stale.slice(1, 3).map(function (x) { return lower(x.m); });
         add('act', 70 + Math.min(20, s0.d || 20), 'Forge', '../Forge/',
-            'You haven’t trained <b>' + lower(s0.m) + '</b> ' + when + '. Make it the focus of your next session' +
-            (others.length ? ' (' + others.join(' and ') + ' are also due)' : '') + '.');
+            '<b>' + s0.m + '</b> — ' + (s0.d === null || s0.d === undefined ? 'not trained recently' : s0.d + ' days since trained') +
+            (others.length ? ' · ' + others.join(', ') + ' due too' : ''));
       }
       var since = daysAgo(f.lastWorkoutDate);
       var weeklyNeed = f.weekTarget ? f.weekTarget - (f.weekWorkoutCount || 0) : 0;
       var weeklyFires = f.weekTarget && weeklyNeed > 0 && weeklyNeed >= daysLeftInWeek - 1 && wsd >= 3;
       if (since !== null && since >= RULES.restDaysNudge && !weeklyFires) {
-        add('act', 60 + since, 'Forge', '../Forge/', 'It’s been <b>' + plural(since, 'day') + '</b> since your last workout.');
+        add('act', 60 + since, 'Forge', '../Forge/', '<b>' + plural(since, 'day') + '</b> since your last workout');
       }
       if (f.weekTarget) {
         var need = f.weekTarget - (f.weekWorkoutCount || 0);
         if (need > 0 && need >= daysLeftInWeek - 1 && wsd >= 3) {
-          add('act', 75, 'Forge', '../Forge/', 'To hit <b>' + plural(f.weekTarget, 'workout') + '</b> this week you need ' +
-              plural(need, 'more session') + ' in the ' + plural(daysLeftInWeek, 'day') + ' left.');
+          add('act', 75, 'Forge', '../Forge/', '<b>' + plural(need, 'more workout') + '</b> in ' + plural(daysLeftInWeek, 'day') + ' to hit ' + f.weekTarget + ' this week');
         }
       }
       var bw = f.bodyweightHistory || [];
       if (bw.length) {
         var lastW = daysAgo(bw[bw.length - 1].date);
-        if (lastW >= RULES.weighInGapDays) add('watch', 35 + lastW, 'Forge', '../Forge/', 'Weigh in — your last one was <b>' + lastW + ' days ago</b>.');
+        if (lastW >= RULES.weighInGapDays) add('watch', 35 + lastW, 'Forge', '../Forge/', '<b>Weigh in</b> — last one ' + lastW + ' days ago');
         // 14-day direction vs goal, using averages so one heavy day doesn't count
         var recent = bw.filter(function (b) { return daysAgo(b.date) <= 7; }), prior = bw.filter(function (b) { var a = daysAgo(b.date); return a > 7 && a <= 21; });
         var avg = function (l) { return l.reduce(function (t, b) { return t + b.kg; }, 0) / l.length; };
         if (f.bodyweightGoalKg && recent.length && prior.length) {
           var change = avg(recent) - avg(prior), wantDown = f.bodyweightGoalKg < avg(recent);
           if (Math.abs(change) >= 0.5 && (change < 0) !== wantDown) {
-            add('watch', 55, 'Forge', '../Forge/', 'Your weight has gone <b>' + (change > 0 ? 'up' : 'down') + ' ' + Math.abs(change).toFixed(1) +
-                ' kg</b> over the last couple of weeks, away from your ' + f.bodyweightGoalKg + ' kg goal.');
+            add('watch', 55, 'Forge', '../Forge/', '<b>Weight</b> ' + (change > 0 ? 'up' : 'down') + ' ' + Math.abs(change).toFixed(1) + ' kg in 2 weeks, away from your goal');
           } else if (Math.abs(change) >= 0.3 && (change < 0) === wantDown) {
-            add('win', 20, 'Forge', '../Forge/', 'Weight is moving the right way — <b>' + (change > 0 ? '+' : '') + change.toFixed(1) + ' kg</b> over two weeks.');
+            add('win', 20, 'Forge', '../Forge/', '<b>Weight</b> moving the right way (' + (change > 0 ? '+' : '') + change.toFixed(1) + ' kg in 2 weeks)');
           }
         }
       }
-      if (f.prsThisWeek > 0) add('win', 25, 'Forge', '../Forge/', '<b>' + plural(f.prsThisWeek, 'PR') + '</b> this week.');
+      if (f.prsThisWeek > 0) add('win', 25, 'Forge', '../Forge/', '<b>' + plural(f.prsThisWeek, 'PR') + '</b> this week');
     }
 
     // ---------- Fuel ----------
@@ -642,22 +640,22 @@
         var shortP = tg.protein_g ? hist.filter(function (h) { return h.protein_g < tg.protein_g * 0.9; }).length : 0;
         if (shortP >= RULES.shortfallDays) {
           var avgP = Math.round(hist.reduce(function (t, h) { return t + h.protein_g; }, 0) / hist.length);
-          add('act', 65, 'Fuel', '../Fuel/', 'Protein has been short on <b>' + shortP + ' of the last ' + hist.length + ' days</b> (averaging ' + avgP + 'g vs ' + tg.protein_g + 'g). A protein-rich snack each day would close most of that gap.');
+          add('act', 65, 'Fuel', '../Fuel/', '<b>Protein</b> short ' + shortP + ' of the last ' + hist.length + ' days (avg ' + avgP + 'g / ' + tg.protein_g + 'g)');
         }
         var overC = tg.calories ? hist.filter(function (h) { return h.calories > tg.calories * 1.05; }).length : 0;
-        if (overC >= 3) add('watch', 60, 'Fuel', '../Fuel/', 'Calories went over your target on <b>' + overC + ' of the last ' + hist.length + ' days</b>.');
+        if (overC >= 3) add('watch', 60, 'Fuel', '../Fuel/', '<b>Calories</b> over target ' + overC + ' of the last ' + hist.length + ' days');
         var shortF = tg.fibre_g ? hist.filter(function (h) { return h.fibre_g < tg.fibre_g * 0.8; }).length : 0;
-        if (shortF >= RULES.shortfallDays) add('watch', 40, 'Fuel', '../Fuel/', 'Fibre has been low on <b>' + shortF + ' of the last ' + hist.length + ' days</b> — oats, beans, fruit and veg are the easy wins.');
+        if (shortF >= RULES.shortfallDays) add('watch', 40, 'Fuel', '../Fuel/', '<b>Fibre</b> low ' + shortF + ' of the last ' + hist.length + ' days');
         var shortW = tg.water_ml ? hist.filter(function (h) { return h.water_ml < tg.water_ml * 0.75; }).length : 0;
-        if (shortW >= RULES.shortfallDays) add('watch', 38, 'Fuel', '../Fuel/', 'Water has been under target on <b>' + shortW + ' of the last ' + hist.length + ' days</b>.');
-        if (!shortP && tg.protein_g && hist.length >= 5) add('win', 22, 'Fuel', '../Fuel/', 'Protein target hit on <b>every logged day</b> this week.');
+        if (shortW >= RULES.shortfallDays) add('watch', 38, 'Fuel', '../Fuel/', '<b>Water</b> under target ' + shortW + ' of the last ' + hist.length + ' days');
+        if (!shortP && tg.protein_g && hist.length >= 5) add('win', 22, 'Fuel', '../Fuel/', '<b>Protein</b> target hit every logged day');
       }
       var loggedToday = d.date === todayYmd && d.loggedToday;
-      if (!loggedToday && hour >= 14) add('watch', 45, 'Fuel', '../Fuel/', 'Nothing logged in Fuel yet today.');
+      if (!loggedToday && hour >= 14) add('watch', 45, 'Fuel', '../Fuel/', '<b>Food</b> — nothing logged yet today');
       // trained today but protein well short, late in the day
       if (fo && fo.data && fo.data.workedOutToday && loggedToday && tg.protein_g && hour >= 17) {
         var gap = tg.protein_g - ((d.today || {}).protein_g || 0);
-        if (gap >= 30) add('act', 68, 'Fuel', '../Fuel/', 'You trained today and you’re still <b>' + Math.round(gap) + 'g short on protein</b> — worth sorting before bed.');
+        if (gap >= 30) add('act', 68, 'Fuel', '../Fuel/', '<b>Protein</b> ' + Math.round(gap) + 'g short on a training day');
       }
     }
 
@@ -676,17 +674,16 @@
       if (gapsM.length) {
         var g0 = gapsM[0];
         add('act', g0.d === null ? 50 : 55 + Math.min(15, g0.d), 'Mind', '../Mind/',
-            (g0.d === null ? 'You haven’t done <b>' + ph(g0.c) + '</b> yet' : 'You haven’t done <b>' + ph(g0.c) + '</b> in ' + g0.d + ' days') +
-            ' — even a short session counts toward your ' + g0.c.target + '-minute weekly target.' +
-            (gapsM.length > 1 ? ' (' + gapsM.slice(1, 3).map(function (x) { return ph(x.c); }).join(' and ') + ' too.)' : ''));
+            '<b>' + esc(g0.c.label) + '</b> — ' + (g0.d === null ? 'not started this week' : g0.d + ' days since last session') +
+            (gapsM.length > 1 ? ' · ' + gapsM.slice(1, 3).map(function (x) { return lower(x.c.label); }).join(', ') + ' too' : ''));
       }
       if (m.weekMinutesTarget && wsd >= 3) {
         var expected = m.weekMinutesTarget * (wsd + 1) / 7;
         if (m.weekMinutesLogged < expected * 0.6) {
-          add('watch', 48, 'Mind', '../Mind/', 'Mind time is behind for the week: <b>' + fmtMins(m.weekMinutesLogged) + ' of ' + fmtMins(m.weekMinutesTarget) + '</b> with ' + plural(daysLeftInWeek, 'day') + ' left — about ' + fmtMins((m.weekMinutesTarget - m.weekMinutesLogged) / daysLeftInWeek) + ' a day would get you there.');
+          add('watch', 48, 'Mind', '../Mind/', '<b>Mind time</b> behind — ' + fmtMins(m.weekMinutesLogged) + ' of ' + fmtMins(m.weekMinutesTarget) + ', about ' + fmtMins((m.weekMinutesTarget - m.weekMinutesLogged) / daysLeftInWeek) + ' a day to catch up');
         }
       }
-      if (m.currentStreakDays >= 5) add('win', 24, 'Mind', '../Mind/', '<b>' + m.currentStreakDays + '-day</b> mind-time streak.');
+      if (m.currentStreakDays >= 5) add('win', 24, 'Mind', '../Mind/', '<b>' + m.currentStreakDays + '-day</b> mind-time streak');
     }
 
     // ---------- Finance ----------
@@ -694,18 +691,18 @@
     if (fi && fi.data) {
       var n = fi.data;
       (n.owed || []).forEach(function (o) {
-        add('act', 58, 'Finance', '../Finance/', '<b>' + esc(o.who) + '</b> owes you <b>' + money(o.amount) + '</b> for ' + esc(o.bill) + '.');
+        add('act', 58, 'Finance', '../Finance/', '<b>' + esc(o.who) + '</b> owes you <b>' + money(o.amount) + '</b> for ' + esc(o.bill));
       });
       (n.budgets || []).forEach(function (b) {
-        if (b.spent > b.budget) add('act', 62, 'Finance', '../Finance/', '<b>' + esc(b.cat) + '</b> is over budget: ' + money(b.spent) + ' of ' + money(b.budget) + '.');
-        else if (b.forecast > b.budget * 1.05) add('watch', 52, 'Finance', '../Finance/', '<b>' + esc(b.cat) + '</b> is on track for ' + money(b.forecast) + ' against a ' + money(b.budget) + ' budget — ' + money(b.budget - b.spent) + ' left to last ' + plural(n.daysLeftInPeriod || 0, 'day') + '.');
+        if (b.spent > b.budget) add('act', 62, 'Finance', '../Finance/', '<b>' + esc(b.cat) + '</b> over budget (' + money(b.spent) + ' / ' + money(b.budget) + ')');
+        else if (b.forecast > b.budget * 1.05) add('watch', 52, 'Finance', '../Finance/', '<b>' + esc(b.cat) + '</b> heading over budget (' + money(b.forecast) + ' / ' + money(b.budget) + ')');
       });
       (n.upcomingBills || []).forEach(function (b) {
         var inD = -daysAgo(b.date);
-        if (inD >= 0 && inD <= RULES.billSoonDays) add('watch', 44 - inD, 'Finance', '../Finance/', '<b>' + esc(b.name) + '</b> (' + money(b.amount) + ') comes out ' + (inD === 0 ? 'today' : inD === 1 ? 'tomorrow' : 'in ' + inD + ' days') + '.');
+        if (inD >= 0 && inD <= RULES.billSoonDays) add('watch', 44 - inD, 'Finance', '../Finance/', '<b>' + esc(b.name) + '</b> ' + money(b.amount) + ' due ' + (inD === 0 ? 'today' : inD === 1 ? 'tomorrow' : 'in ' + inD + ' days'));
       });
       if (n.leftOfPay !== null && n.leftOfPay !== undefined && n.leftOfPay < (n.upcomingBillsTotal || 0)) {
-        add('act', 80, 'Finance', '../Finance/', 'Bills still to come (' + money(n.upcomingBillsTotal) + ') are more than what’s left of your pay (' + money(n.leftOfPay) + ').');
+        add('act', 80, 'Finance', '../Finance/', '<b>Bills to come</b> (' + money(n.upcomingBillsTotal) + ') are more than what’s left of pay (' + money(n.leftOfPay) + ')');
       }
     }
 
@@ -713,10 +710,10 @@
     APPS.forEach(function (a) {
       var s = readSummary(a);
       var h = s ? hoursSince(s.updatedAt) : null;
-      if (s && h !== null && h > 72) add('watch', 30, a.label, a.url, 'You haven’t opened <b>' + esc(a.label) + '</b> in ' + Math.round(h / 24) + ' days, so its numbers here may be out of date.');
+      if (s && h !== null && h > 72) add('watch', 30, a.label, a.url, '<b>' + esc(a.label) + '</b> not opened in ' + Math.round(h / 24) + ' days — numbers may be out of date');
     });
     var lastB = null; try { lastB = localStorage.getItem('ecosystem_lastBackup'); } catch (e) {}
-    if (lastB && hoursSince(lastB) > 48) add('watch', 42, 'Backup', '../Finance/', 'Your apps were last backed up <b>' + Math.round(hoursSince(lastB) / 24) + ' days ago</b>.');
+    if (lastB && hoursSince(lastB) > 48) add('watch', 42, 'Backup', '../Finance/', '<b>Backup</b> — last one ' + Math.round(hoursSince(lastB) / 24) + ' days ago');
 
     return out.sort(function (a, b) { return b.score - a.score; });
   }
@@ -728,7 +725,7 @@
     var todo = list.filter(function (x) { return x.level !== 'win'; });
     var wins = list.filter(function (x) { return x.level === 'win'; });
     var perApp = {}, short = [];
-    todo.forEach(function (x) { perApp[x.app] = (perApp[x.app] || 0) + 1; if (perApp[x.app] <= 2 && short.length < 5) short.push(x); });
+    todo.forEach(function (x) { perApp[x.app] = (perApp[x.app] || 0) + 1; if (perApp[x.app] <= 1 && short.length < 3) short.push(x); });
     var shown = showAllInsights ? todo : short;
     var colour = { act: 'var(--brand)', watch: 'var(--gold)', win: 'var(--good)' };
     var item = function (x) {
@@ -748,8 +745,8 @@
     if (folded) return '<div class="ins folded">' + head + '</div>';
     return '<div class="ins">' + head +
            (todo.length ? shown.map(item).join('') : '<div class="ins-ok">Nothing needs your attention right now.</div>') +
-           (todo.length > short.length ? '<button class="ins-more" id="insMore">' + (showAllInsights ? 'Show fewer' : 'Show all ' + todo.length) + '</button>' : '') +
-           (wins.length ? wins.slice(0, 2).map(item).join('') : '') +
+           (todo.length + wins.length > short.length ? '<button class="ins-more" id="insMore">' + (showAllInsights ? 'Show fewer' : 'Show all ' + (todo.length + wins.length)) + '</button>' : '') +
+           (showAllInsights && wins.length ? wins.map(item).join('') : '') +
            '</div>';
   }
 
