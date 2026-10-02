@@ -192,6 +192,9 @@
   .wdots i.on { background: var(--good); } .wdots i.half { background: var(--gold); } .wdots i.low { background: var(--danger); opacity:.7; }
   .wdots i.fut { background: transparent; border:1px solid var(--line); }
   .wbadge { font-size:13px; font-weight:700; } .wbadge.ok { color: var(--good); } .wbadge.up { color: var(--gold); }
+  .hs-line { font-size:13px; color: var(--muted); line-height:1.6; }
+  .hs-line b { color: var(--ink); }
+  .btn-check { margin-top:10px; width:100%; padding:11px; border-radius:12px; background: var(--surface2); border:1px solid var(--line); color: var(--ink); font: inherit; font-size:14px; font-weight:700; cursor:pointer; }
 </style>
 </head>
 <body>
@@ -966,7 +969,11 @@
       return '<div class="set-row"><span class="sr-name">' + esc(c.label) + '</span><span class="sr-val">' + esc(c.app) + '</span>' +
                '<button class="switch' + (prefs.chartsOff[c.id] ? '' : ' on') + '" data-chart="' + c.id + '" aria-label="Show ' + esc(c.label) + '"></button></div>';
     }).join('') + '</div>';
+    html += '<div class="set-group"><h2>Steps and sleep</h2><div class="set-row" style="display:block">' +
+              '<div id="healthStatus" class="hs-line">' + healthStatusText(readHealthCache()) + '</div>' +
+              '<button class="btn-check" id="healthCheck">Check now</button></div></div>';
     $('screen-settings').innerHTML = html;
+    $('healthCheck').addEventListener('click', checkHealthNow);
     Array.prototype.forEach.call($('screen-settings').querySelectorAll('.switch'), function (btn) {
       btn.addEventListener('click', function () {
         var on = !btn.classList.contains('on');
@@ -975,6 +982,38 @@
         renderHome();
       });
     });
+  }
+
+  // ---- Steps and sleep status (Settings) - asks the relay directly, so it shows what's really there ----
+  function healthStatusText(d) {
+    if (!d || !d.days) return 'Nothing received yet. Tap Check now.';
+    var keys = Object.keys(d.days), steps = keys.filter(function (k) { return d.days[k].steps; }), sleep = keys.filter(function (k) { return d.days[k].sleepMin; });
+    var ago = d.updatedAt ? Math.round((Date.now() - new Date(d.updatedAt).getTime()) / 60000) : null;
+    var when = ago === null ? 'never' : ago < 2 ? 'just now' : ago < 120 ? ago + ' min ago' : Math.round(ago / 60) + ' hours ago';
+    var today = ymdLocal(new Date());
+    return 'Last sent from your phone: <b>' + when + '</b><br>Steps for ' + plural(steps.length, 'day') +
+           (d.days[today] && d.days[today].steps ? ' (today ' + num(d.days[today].steps) + ')' : ' (none for today yet)') +
+           ' \u00b7 sleep for ' + plural(sleep.length, 'night');
+  }
+  function checkHealthNow() {
+    var el = $('healthStatus'), s = null;
+    try { s = JSON.parse(localStorage.getItem('finance_settings') || 'null'); } catch (e) {}
+    if (!s || !s.relayUrl || !s.relayKey) { el.innerHTML = 'No relay set up on this phone. Add it in Finance \u2192 Settings.'; return; }
+    var base = String(s.relayUrl).trim().replace(/\/+$/, ''); if (!/^https?:\/\//i.test(base)) base = 'https://' + base;
+    el.textContent = 'Checking\u2026';
+    fetch(base + '/health', { headers: { 'X-Relay-Key': s.relayKey } })
+      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (b) { return { ok: r.ok, status: r.status, body: b }; }); })
+      .then(function (res) {
+        if (!res.ok) {
+          el.innerHTML = res.status === 404 ? 'Your relay doesn\u2019t have the steps-and-sleep update yet. Paste the new worker.js into Cloudflare and Deploy.'
+                       : 'Relay said: ' + esc((res.body && res.body.error) || ('error ' + res.status));
+          return;
+        }
+        res.body.fetchedAt = Date.now();
+        try { localStorage.setItem('health_cache', JSON.stringify(res.body)); } catch (e) {}
+        el.innerHTML = healthStatusText(res.body);
+      })
+      .catch(function () { el.textContent = 'Couldn\u2019t reach your relay. Check you\u2019re online.'; });
   }
 
   /* ================= WEEKLY REVIEW (Week tab) =================
