@@ -174,6 +174,24 @@
   .tab .ic { line-height:0; padding:4px 14px; }
   .tab .ic .ci { width:22px; height:22px; display:block; }
   .empty-state .emoji .ci { color: var(--ink-soft, var(--muted)); }
+  .wk-nav { display:flex; justify-content:space-between; align-items:center; gap:10px; margin:4px 0 14px; text-align:center; font-size:13px; color: var(--muted); }
+  .wk-nav b { color: var(--ink); font-size:16px; }
+  .wk-nav button { background: var(--surface2); border:1px solid var(--line); color: var(--ink); border-radius:999px; padding:8px 12px; font: inherit; font-size:13px; font-weight:700; cursor:pointer; }
+  .wk-nav button:disabled { opacity:.3; cursor:default; }
+  .wk-card { padding-bottom:10px; }
+  .wk-verdict { font-family: var(--font-display); font-size:26px; line-height:1.1; }
+  .wk-vsub { font-size:13px; color: var(--muted); margin:4px 0 10px; }
+  .wk-days, .wk-row { display:grid; grid-template-columns:62px minmax(0,1fr) auto; gap:10px; align-items:center; }
+  .wk-days { padding-bottom:4px; } .wk-days em { font-style:normal; font-size:12px; color: var(--muted); width:9px; text-align:center; }
+  .wk-row { padding:10px 0; border-top:1px solid var(--line); font-size:14px; }
+  .wk-app { font-size:12px; font-weight:700; color: var(--muted); }
+  .wk-main small { display:block; font-size:12px; color: var(--muted); margin-top:2px; }
+  .wk-main.ok { color: var(--good); }
+  .wdots { display:flex; gap:3px; }
+  .wdots i { width:9px; height:9px; border-radius:2px; background: var(--surface2); }
+  .wdots i.on { background: var(--good); } .wdots i.half { background: var(--gold); } .wdots i.low { background: var(--danger); opacity:.7; }
+  .wdots i.fut { background: transparent; border:1px solid var(--line); }
+  .wbadge { font-size:13px; font-weight:700; } .wbadge.ok { color: var(--good); } .wbadge.up { color: var(--gold); }
 </style>
 </head>
 <body>
@@ -188,11 +206,13 @@
 
   <main>
     <section class="screen active" id="screen-home"></section>
+    <section class="screen" id="screen-week"></section>
     <section class="screen" id="screen-settings"></section>
   </main>
 
   <nav class="tabbar">
     <button class="tab active" data-screen="home"><span class="ic"><svg class="ci" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M222.14,105.85l-80-80a20,20,0,0,0-28.28,0l-80,80A19.86,19.86,0,0,0,28,120v96a12,12,0,0,0,12,12h64a12,12,0,0,0,12-12V164h24v52a12,12,0,0,0,12,12h64a12,12,0,0,0,12-12V120A19.86,19.86,0,0,0,222.14,105.85ZM204,204H164V152a12,12,0,0,0-12-12H104a12,12,0,0,0-12,12v52H52V121.65l76-76,76,76Z"/></svg></span><span class="lb">Home</span></button>
+    <button class="tab" data-screen="week"><span class="ic"><svg class="ci" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208,28H188V24a12,12,0,0,0-24,0v4H92V24a12,12,0,0,0-24,0v4H48A20,20,0,0,0,28,48V208a20,20,0,0,0,20,20H208a20,20,0,0,0,20-20V48A20,20,0,0,0,208,28ZM68,52a12,12,0,0,0,24,0h72a12,12,0,0,0,24,0h16V76H52V52ZM52,204V100H204V204Z"/></svg></span><span class="lb">Week</span></button>
     <button class="tab" data-screen="settings"><span class="ic"><svg class="ci" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M128,76a52,52,0,1,0,52,52A52.06,52.06,0,0,0,128,76Zm0,80a28,28,0,1,1,28-28A28,28,0,0,1,128,156Zm113.86-49.57A12,12,0,0,0,236,98.34L208.21,82.49l-.11-31.31a12,12,0,0,0-4.25-9.12,116,116,0,0,0-38-21.41,12,12,0,0,0-9.68.89L128,37.27,99.83,21.53a12,12,0,0,0-9.7-.9,116.06,116.06,0,0,0-38,21.47,12,12,0,0,0-4.24,9.1l-.14,31.34L20,98.35a12,12,0,0,0-5.85,8.11,110.7,110.7,0,0,0,0,43.11A12,12,0,0,0,20,157.66l27.82,15.85.11,31.31a12,12,0,0,0,4.25,9.12,116,116,0,0,0,38,21.41,12,12,0,0,0,9.68-.89L128,218.73l28.14,15.74a12,12,0,0,0,9.7.9,116.06,116.06,0,0,0,38-21.47,12,12,0,0,0,4.24-9.1l.14-31.34,27.81-15.81a12,12,0,0,0,5.85-8.11A110.7,110.7,0,0,0,241.86,106.43Zm-22.63,33.18-26.88,15.28a11.94,11.94,0,0,0-4.55,4.59c-.54,1-1.11,1.93-1.7,2.88a12,12,0,0,0-1.83,6.31L184.13,199a91.83,91.83,0,0,1-21.07,11.87l-27.15-15.19a12,12,0,0,0-5.86-1.53h-.29c-1.14,0-2.3,0-3.44,0a12.08,12.08,0,0,0-6.14,1.51L93,210.82A92.27,92.27,0,0,1,71.88,199l-.11-30.24a12,12,0,0,0-1.83-6.32c-.58-.94-1.16-1.91-1.7-2.88A11.92,11.92,0,0,0,63.7,155L36.8,139.63a86.53,86.53,0,0,1,0-23.24l26.88-15.28a12,12,0,0,0,4.55-4.58c.54-1,1.11-1.94,1.7-2.89a12,12,0,0,0,1.83-6.31L71.87,57A91.83,91.83,0,0,1,92.94,45.17l27.15,15.19a11.92,11.92,0,0,0,6.15,1.52c1.14,0,2.3,0,3.44,0a12.08,12.08,0,0,0,6.14-1.51L163,45.18A92.27,92.27,0,0,1,184.12,57l.11,30.24a12,12,0,0,0,1.83,6.32c.58.94,1.16,1.91,1.7,2.88A11.92,11.92,0,0,0,192.3,101l26.9,15.33A86.53,86.53,0,0,1,219.23,139.61Z"/></svg></span><span class="lb">Settings</span></button>
   </nav>
 </div>
@@ -957,13 +977,126 @@
     });
   }
 
+  /* ================= WEEKLY REVIEW (Week tab) =================
+     One week at a time, Monday to Sunday, built from what each app shares.
+     Opens on last week; arrows step back up to ~9 weeks (what the apps keep). */
+  var weekOffset = 1;
+  function readHealthCache() { try { return JSON.parse(localStorage.getItem('health_cache') || 'null'); } catch (e) { return null; } }
+  function renderWeek() {
+    var el = $('screen-week');
+    var ws = weekStartLocal(); ws.setDate(ws.getDate() - 7 * weekOffset);
+    var days = [], dn = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    for (var i = 0; i < 7; i++) { var d = new Date(ws); d.setDate(d.getDate() + i); days.push(ymdLocal(d)); }
+    var we = new Date(ws); we.setDate(we.getDate() + 6);
+    var today = ymdLocal(new Date());
+    var elapsed = days.filter(function (d) { return d <= today; }).length;
+    var range = ws.getMonth() === we.getMonth() ? ws.getDate() + '–' + fmtDate(we, { day: 'numeric', month: 'short' })
+              : fmtDate(ws, { day: 'numeric', month: 'short' }) + ' – ' + fmtDate(we, { day: 'numeric', month: 'short' });
+    var title = weekOffset === 0 ? 'This week so far' : weekOffset === 1 ? 'Last week' : weekOffset + ' weeks ago';
+    var rows = [], goals = 0, met = 0, toWork = [];
+    var dotRow = function (states) { return '<span class="wdots">' + states.map(function (st, k) { return '<i class="' + (days[k] > today ? 'fut' : st) + '"></i>'; }).join('') + '</span>'; };
+
+    var fo = get('forge_summary');
+    if (fo && fo.data) {
+      var log = (fo.data.weekLog || []).filter(function (w) { return days.indexOf(w.date) !== -1; });
+      var n = log.length, tgt = fo.data.weekTarget, hitM = {};
+      log.forEach(function (w) { (w.muscles || []).forEach(function (m) { hitM[m] = 1; }); });
+      var missed = ['Legs', 'Back', 'Chest', 'Shoulders'].filter(function (m) { return !hitM[m]; });
+      if (tgt) { goals++; if (n >= tgt) met++; else toWork.push('Workouts'); }
+      rows.push({ app: 'Forge', main: tgt ? n + ' of ' + tgt + ' workouts' : plural(n, 'workout'), ok: tgt ? n >= tgt : null,
+        sub: !n ? 'No workouts logged' : missed.length ? missed.map(lower).join(', ') + ' not trained' : 'Every main muscle group trained',
+        dots: days.map(function (d) { return log.some(function (w) { return w.date === d; }) ? 'on' : ''; }) });
+    }
+    var fu = get('fuel_summary');
+    if (fu && fu.data) {
+      var tg = fu.data.targets || {};
+      var hist = (fu.data.history || []).filter(function (h) { return days.indexOf(h.date) !== -1 && h.items > 0; });
+      var byDate = {}; hist.forEach(function (h) { byDate[h.date] = h; });
+      var avg = function (k) { return hist.length ? hist.reduce(function (a, h) { return a + (h[k] || 0); }, 0) / hist.length : 0; };
+      var pOk = function (h) { return !tg.protein_g || h.protein_g >= tg.protein_g * 0.95; };
+      var kOk = function (h) { return !tg.calories || h.calories <= tg.calories * 1.05; };
+      var pHit = hist.filter(pOk).length, fHit = tg.fibre_g ? hist.filter(function (h) { return h.fibre_g >= tg.fibre_g * 0.9; }).length : null;
+      var need = Math.max(1, Math.ceil(elapsed * 0.7));
+      if (tg.protein_g) { goals++; if (pHit >= need) met++; else toWork.push('Protein'); }
+      var subs = [];
+      if (tg.protein_g && hist.length) subs.push('protein hit ' + pHit + ' of ' + hist.length + ' days');
+      if (fHit !== null && hist.length) subs.push('fibre hit ' + fHit);
+      if (fHit !== null && hist.length && fHit < need) toWork.push('Fibre');
+      rows.push({ app: 'Fuel', main: hist.length ? 'Avg ' + num(avg('calories')) + ' kcal · ' + num(avg('protein_g')) + ' g protein' : 'Nothing logged',
+        ok: tg.protein_g ? pHit >= need : null, sub: subs.length ? subs.join(' · ') : (hist.length ? plural(hist.length, 'day') + ' logged' : ''),
+        dots: days.map(function (d) { var h = byDate[d]; return !h ? '' : (pOk(h) && kOk(h)) ? 'on' : 'half'; }) });
+    }
+    var mi = get('mind_summary');
+    if (mi && mi.data) {
+      var dm = mi.data.dailyMins || {}, mins = days.reduce(function (a, d) { return a + (dm[d] || 0); }, 0);
+      var wt = (mi.data.weeklyTotals || []).filter(function (x) { return x.week === days[0]; })[0];
+      var mt = (wt && wt.target) || mi.data.weekMinutesTarget || 0;
+      var sub = plural(days.filter(function (d) { return dm[d] > 0; }).length, 'day') + ' with mind time';
+      if (weekOffset === 0) {
+        var skipped = (mi.data.byCategory || []).filter(function (c) { return c.target > 0 && (!c.lastDone || c.lastDone < days[0]); }).map(function (c) { return c.label; });
+        if (skipped.length) sub = skipped.slice(0, 2).join(' and ') + ' not done yet';
+      }
+      if (mt) { goals++; if (mins >= mt) met++; else toWork.push('Mind time'); }
+      rows.push({ app: 'Mind', main: fmtMins(mins) + (mt ? ' of ' + fmtMins(mt) : ''), ok: mt ? mins >= mt : null, sub: sub,
+        dots: days.map(function (d) { return dm[d] > 0 ? 'on' : ''; }) });
+    }
+    var hd = readHealthCache();
+    if (hd && hd.days) {
+      var sv = days.map(function (d) { return (hd.days[d] || {}).steps || 0; }), sl = days.map(function (d) { return (hd.days[d] || {}).sleepMin || 0; });
+      var have = function (a) { return a.filter(Boolean); };
+      if (have(sv).length) {
+        var bestI = sv.indexOf(Math.max.apply(null, sv));
+        rows.push({ app: 'Steps', main: 'Avg ' + num(have(sv).reduce(function (a, b) { return a + b; }, 0) / have(sv).length) + ' a day', ok: null,
+          sub: 'Best ' + num(sv[bestI]) + ' on ' + fmtDate(new Date(days[bestI] + 'T12:00'), { weekday: 'long' }),
+          dots: sv.map(function (v) { return !v ? '' : v >= 10000 ? 'on' : v >= 6000 ? 'half' : 'low'; }) });
+      }
+      if (have(sl).length) {
+        var minI = sl.indexOf(Math.min.apply(null, have(sl)));
+        rows.push({ app: 'Sleep', main: 'Avg ' + fmtMins(have(sl).reduce(function (a, b) { return a + b; }, 0) / have(sl).length) + ' a night', ok: null,
+          sub: 'Shortest ' + fmtMins(sl[minI]) + ' (' + fmtDate(new Date(days[minI] + 'T12:00'), { weekday: 'long' }) + ')',
+          dots: sl.map(function (v) { return !v ? '' : v >= 420 ? 'on' : v >= 360 ? 'half' : 'low'; }) });
+      }
+    }
+    var fi = get('finance_summary');
+    if (fi && fi.data && fi.data.spendByDate) {
+      var sb = fi.data.spendByDate, spent = days.reduce(function (a, d) { return a + (sb[d] || 0); }, 0);
+      var prevDays = days.map(function (d) { var x = new Date(d + 'T12:00'); x.setDate(x.getDate() - 7); return ymdLocal(x); });
+      var prev = prevDays.reduce(function (a, d) { return a + (sb[d] || 0); }, 0), diff = spent - prev;
+      rows.push({ app: 'Finance', main: money(spent) + ' spent', ok: null,
+        sub: prev ? (Math.abs(diff) < 5 ? 'About the same as the week before' : money(Math.abs(diff)) + (diff < 0 ? ' less' : ' more') + ' than the week before') : '',
+        badge: prev && Math.abs(diff) >= 5 ? '<span class="wbadge ' + (diff < 0 ? 'ok' : 'up') + '">' + (diff < 0 ? '▼ ' : '▲ ') + Math.round(Math.abs(diff) / prev * 100) + '%</span>' : '' });
+    }
+
+    var verdict = !goals ? 'Your week' : met === goals ? 'Every target met' : met >= goals - 1 ? 'A solid week' : met > 0 ? 'A mixed week' : 'A tough week';
+    var vsub = goals ? met + ' of ' + goals + ' targets met' + (toWork.length ? '. ' + toWork[0] + ' is the one to work on.' : '.') : 'Set targets in your apps to see how the week went.';
+    if (weekOffset === 0) { verdict = 'Week in progress'; vsub = goals ? met + ' of ' + goals + ' targets met so far, with ' + plural(7 - elapsed, 'day') + ' to go.' : vsub; }
+    var html = '<div class="wk-nav"><button id="wkPrev"' + (weekOffset >= 9 ? ' disabled' : '') + '>‹ Earlier</button>' +
+               '<span><b>' + title + '</b><br>' + range + '</span>' +
+               '<button id="wkNext"' + (weekOffset <= 0 ? ' disabled' : '') + '>Later ›</button></div>';
+    if (!rows.length) {
+      html += '<div class="note">Nothing to review yet. Log in your apps and each week\'s summary appears here.</div>';
+    } else {
+      html += '<div class="track wk-card"><div class="wk-verdict">' + esc(verdict) + '</div><div class="wk-vsub">' + esc(vsub) + '</div>' +
+        '<div class="wk-days"><span></span><span></span><span class="wdots">' + dn.map(function (x) { return '<em>' + x + '</em>'; }).join('') + '</span></div>' +
+        rows.map(function (r) {
+          return '<div class="wk-row"><span class="wk-app">' + r.app + '</span>' +
+                 '<span class="wk-main' + (r.ok === true ? ' ok' : '') + '">' + esc(r.main) + (r.ok === true ? ' ✓' : '') + (r.sub ? '<small>' + esc(r.sub) + '</small>' : '') + '</span>' +
+                 (r.dots ? dotRow(r.dots) : (r.badge || '<span></span>')) + '</div>';
+        }).join('') + '</div>' +
+        '<div class="note">Dots: green = target hit that day, amber = close, grey = missed or not logged.</div>';
+    }
+    el.innerHTML = html;
+    if ($('wkPrev')) $('wkPrev').addEventListener('click', function () { if (weekOffset < 9) { weekOffset++; renderWeek(); } });
+    if ($('wkNext')) $('wkNext').addEventListener('click', function () { if (weekOffset > 0) { weekOffset--; renderWeek(); } });
+  }
+
   function switchScreen(name) {
     Array.prototype.forEach.call(document.querySelectorAll('.screen'), function (s) { s.classList.remove('active'); });
     $('screen-' + name).classList.add('active');
     Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (t) {
       t.classList.toggle('active', t.dataset.screen === name);
     });
-    if (name === 'settings') renderSettings(); else renderHome();
+    if (name === 'settings') renderSettings(); else if (name === 'week') renderWeek(); else renderHome();
     window.scrollTo(0, 0);
   }
   Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (t) {
