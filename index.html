@@ -1022,6 +1022,19 @@
      Opens on last week; arrows step back up to ~9 weeks (what the apps keep). */
   var weekOffset = 1;
   function readHealthCache() { try { return JSON.parse(localStorage.getItem('health_cache') || 'null'); } catch (e) { return null; } }
+  // Health data plus sleep you entered in Mind ('sleep_manual'), used where Samsung has no night.
+  function readHealthWithSleep() {
+    var hd = readHealthCache(), m = {};
+    try { m = JSON.parse(localStorage.getItem('sleep_manual') || '{}') || {}; } catch (e) {}
+    if (!Object.keys(m).length) return hd;
+    hd = hd && hd.days ? JSON.parse(JSON.stringify(hd)) : { days: {} };
+    Object.keys(m).forEach(function (k) {
+      if (!m[k] || !m[k].min) return;
+      var d = hd.days[k] = hd.days[k] || {};
+      if (!d.sleepMin) d.sleepMin = m[k].min;
+    });
+    return hd;
+  }
   function renderWeek() {
     var el = $('screen-week');
     var ws = weekStartLocal(); ws.setDate(ws.getDate() - 7 * weekOffset);
@@ -1083,7 +1096,7 @@
       rows.push({ app: 'Mind', main: fmtMins(mins) + (mt ? ' of ' + fmtMins(mt) : ''), ok: mt ? mins >= mt : null, sub: sub,
         dots: days.map(function (d) { return dm[d] > 0 ? 'on' : ''; }) });
     }
-    var hd = readHealthCache();
+    var hd = readHealthWithSleep();
     if (hd && hd.days) {
       var sv = days.map(function (d) { return (hd.days[d] || {}).steps || 0; }), sl = days.map(function (d) { return (hd.days[d] || {}).sleepMin || 0; });
       var have = function (a) { return a.filter(Boolean); };
