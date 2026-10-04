@@ -665,7 +665,7 @@
           var avgP = Math.round(hist.reduce(function (t, h) { return t + h.protein_g; }, 0) / hist.length);
           add('act', 65, 'Fuel', '../Fuel/', '<b>Protein</b> short ' + shortP + ' of the last ' + hist.length + ' days (avg ' + avgP + 'g / ' + tg.protein_g + 'g)');
         }
-        var overC = tg.calories ? hist.filter(function (h) { return h.calories > tg.calories * 1.05; }).length : 0;
+        var overC = tg.calories ? hist.filter(function (h) { return h.calories > (h.target_kcal || tg.calories) * 1.05; }).length : 0;
         if (overC >= 3) add('watch', 60, 'Fuel', '../Fuel/', '<b>Calories</b> over target ' + overC + ' of the last ' + hist.length + ' days');
         var shortF = tg.fibre_g ? hist.filter(function (h) { return h.fibre_g < tg.fibre_g * 0.8; }).length : 0;
         if (shortF >= RULES.shortfallDays) add('watch', 40, 'Fuel', '../Fuel/', '<b>Fibre</b> low ' + shortF + ' of the last ' + hist.length + ' days');
@@ -1069,7 +1069,7 @@
       var byDate = {}; hist.forEach(function (h) { byDate[h.date] = h; });
       var avg = function (k) { return hist.length ? hist.reduce(function (a, h) { return a + (h[k] || 0); }, 0) / hist.length : 0; };
       var pOk = function (h) { return !tg.protein_g || h.protein_g >= tg.protein_g * 0.95; };
-      var kOk = function (h) { return !tg.calories || h.calories <= tg.calories * 1.05; };
+      var kOk = function (h) { var t = h.target_kcal || tg.calories; return !t || h.calories <= t * 1.05; };
       var pHit = hist.filter(pOk).length, fHit = tg.fibre_g ? hist.filter(function (h) { return h.fibre_g >= tg.fibre_g * 0.9; }).length : null;
       var need = Math.max(1, Math.ceil((elapsed - cheatN) * 0.7));
       if (tg.protein_g) { goals++; if (pHit >= need) met++; else toWork.push('Protein'); }
